@@ -232,28 +232,36 @@ class _NoteScreenState extends State<NoteScreen> {
     );
 
     if (result == true && mounted) {
-      final content = contentController.text.trim();
-      if (content.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('笔记内容不能为空')),
-        );
-        return;
-      }
+      try {
+        final content = contentController.text.trim();
+        if (content.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('笔记内容不能为空')),
+          );
+          return;
+        }
 
-      final noteProvider = context.read<NoteProvider>();
+        final noteProvider = context.read<NoteProvider>();
 
-      if (note != null) {
-        final updated = note.copyWith(
-          content: content,
-          projectId: selectedProjectId,
-        );
-        await noteProvider.updateNote(updated);
-      } else {
-        final newNote = Note(
-          content: content,
-          projectId: selectedProjectId,
-        );
-        await noteProvider.addNote(newNote);
+        if (note != null) {
+          final updated = note.copyWith(
+            content: content,
+            projectId: selectedProjectId,
+          );
+          await noteProvider.updateNote(updated);
+        } else {
+          final newNote = Note(
+            content: content,
+            projectId: selectedProjectId,
+          );
+          await noteProvider.addNote(newNote);
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('操作失败: $e')),
+          );
+        }
       }
     }
   }
@@ -278,7 +286,15 @@ class _NoteScreenState extends State<NoteScreen> {
     );
 
     if (confirm == true && mounted) {
-      await context.read<NoteProvider>().deleteNote(note.id);
+      try {
+        await context.read<NoteProvider>().deleteNote(note.id);
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('操作失败: $e')),
+          );
+        }
+      }
     }
   }
 }

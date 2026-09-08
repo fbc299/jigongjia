@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:jigongjia/core/utils/privacy_service.dart';
 
 /// A reusable list tile for displaying work, borrow, or settlement records.
 class RecordTile extends StatelessWidget {
@@ -50,7 +51,7 @@ class RecordTile extends StatelessWidget {
           child: Icon(iconData, color: iconColor, size: 20),
         ),
         title: Text(
-          '¥${numberFormat.format(amount)}',
+          PrivacyService.format(amount, hide: PrivacyService().isHidden.value),
           style: TextStyle(
             fontWeight: FontWeight.w600,
             color: recordType == RecordType.settlement

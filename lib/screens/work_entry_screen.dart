@@ -5,8 +5,12 @@ import 'package:intl/intl.dart';
 
 import 'package:jigongjia/models/project.dart';
 import 'package:jigongjia/models/work_record.dart';
+import 'package:jigongjia/core/utils/privacy_service.dart';
 import 'package:jigongjia/providers/work_provider.dart';
 import 'package:jigongjia/providers/project_provider.dart';
+import 'package:jigongjia/screens/widgets/work_type_selector.dart';
+import 'package:jigongjia/screens/widgets/time_input_panel.dart';
+import 'package:jigongjia/screens/widgets/summary_panel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Calendar-style work entry page
@@ -48,6 +52,15 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
         title: _buildProjectSelector(context),
         backgroundColor: const Color(0xFFF8F6F2),
         elevation: 0,
+        actions: [
+          ValueListenableBuilder<bool>(
+            valueListenable: PrivacyService().isHidden,
+            builder: (_, hidden, __) => IconButton(
+              icon: Icon(hidden ? Icons.visibility_off : Icons.visibility),
+              onPressed: () => PrivacyService().toggle(),
+            ),
+          ),
+        ],
       ),
       body: Consumer<WorkProvider>(
         builder: (context, workProv, _) {
@@ -296,7 +309,7 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
     String label;
     if (record.type == WorkType.point) {
       color = theme.colorScheme.primary;
-      label = record.days == 0.5 ? '半' : (record.overtimeHours > 0 ? '加' : '');
+      label = record.days == 0.5 ? '半' : (record.overtimeHours > 0 ? '${record.overtimeHours.toStringAsFixed(record.overtimeHours == record.overtimeHours.roundToDouble() ? 0 : 1)}h' : '');
     } else if (record.type == WorkType.packageDay) {
       color = Colors.teal;
       label = '包';
@@ -385,11 +398,11 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
     } else if (record.type == WorkType.point) {
       desc = '${record.days}天';
       if (record.overtimeHours > 0) desc += ' + 加班${record.overtimeHours.toInt()}h';
-      desc += ' · ¥${record.dailyRate}/天';
+      desc += ' · ${PrivacyService.format(record.dailyRate, hide: PrivacyService().isHidden.value)}/天';
       icon = Icons.engineering;
       color = theme.colorScheme.primary;
     } else if (record.type == WorkType.packageDay) {
-      desc = '包工 ${record.packageDays}天 · ¥${record.packageDayRate}/天';
+      desc = '包工 ${record.packageDays}天 · ${PrivacyService.format(record.packageDayRate, hide: PrivacyService().isHidden.value)}/天';
       icon = Icons.calendar_view_day;
       color = Colors.teal;
     } else {
@@ -433,7 +446,7 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              record.isRest ? '—' : '¥${record.totalWage.toStringAsFixed(0)}',
+              record.isRest ? '—' : PrivacyService.format(record.totalWage, hide: PrivacyService().isHidden.value),
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w400,
@@ -493,6 +506,7 @@ class _WorkFormSheet extends StatefulWidget {
 
 class _WorkFormSheetState extends State<_WorkFormSheet> {
   late WorkType _workType;
+  SharedPreferences? _prefs;
   bool _isRest = false;
   double _days = 1.0;
   double _overtimeHours = 0.0;
@@ -505,8 +519,10 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
   final _qtyUnitPriceCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
 
-  static const _dayOptions = [0.5, 1.0, 1.5, 2.0];
-  static const _qtyUnits = ['平方', '米', '立方', '件'];
+  Future<SharedPreferences> _ensurePrefs() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    return _prefs!;
+  }
 
   bool get _isEdit => widget.existingRecord != null;
 
@@ -562,7 +578,6 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final weekday = ['一', '二', '三', '四', '五', '六', '日'][widget.date.weekday - 1];
 
     return Scaffold(
@@ -582,182 +597,57 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [
-          // Mode selector
-          SegmentedButton<WorkType>(
-            segments: const [
-              ButtonSegment(value: WorkType.point, label: Text('点工'), icon: Icon(Icons.access_time, size: 18)),
-              ButtonSegment(value: WorkType.packageDay, label: Text('包工·天'), icon: Icon(Icons.calendar_view_day, size: 18)),
-              ButtonSegment(value: WorkType.packageQty, label: Text('包工·量'), icon: Icon(Icons.straighten, size: 18)),
-            ],
-            selected: {_workType},
-            onSelectionChanged: (s) => setState(() => _workType = s.first),
-          ),
-          const SizedBox(height: 16),
-
-          // Rest toggle
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(_isRest ? '休息日' : '正常上工'),
-            value: _isRest,
-            onChanged: (v) => setState(() => _isRest = v),
-            activeColor: Colors.orange,
+          // Work type selector + rest toggle
+          WorkTypeSelector(
+            workType: _workType,
+            isRest: _isRest,
+            onWorkTypeChanged: (t) => setState(() => _workType = t),
+            onRestChanged: (v) => setState(() => _isRest = v),
           ),
 
           if (!_isRest) ...[
             const SizedBox(height: 8),
-            if (_workType == WorkType.point) _buildPointFields(theme),
-            if (_workType == WorkType.packageDay) _buildPkgDayFields(),
-            if (_workType == WorkType.packageQty) _buildPkgQtyFields(),
+            if (_workType == WorkType.point)
+              TimeInputPanel(
+                days: _days,
+                overtimeHours: _overtimeHours,
+                dailyRateCtrl: _dailyRateCtrl,
+                overtimeRateCtrl: _overtimeRateCtrl,
+                onDaysChanged: (d) => setState(() => _days = d),
+                onOvertimeHoursChanged: (v) => setState(() => _overtimeHours = v),
+                onAnyFieldChanged: () => setState(() {}),
+              ),
+            if (_workType == WorkType.packageDay)
+              PackageDayInputPanel(
+                packageDaysCtrl: _packageDaysCtrl,
+                packageDayRateCtrl: _packageDayRateCtrl,
+                onAnyFieldChanged: () => setState(() {}),
+              ),
+            if (_workType == WorkType.packageQty)
+              PackageQtyInputPanel(
+                quantityCtrl: _quantityCtrl,
+                qtyUnit: _qtyUnit,
+                qtyUnitPriceCtrl: _qtyUnitPriceCtrl,
+                onQtyUnitChanged: (v) => setState(() => _qtyUnit = v),
+                onAnyFieldChanged: () => setState(() {}),
+              ),
           ],
 
-          const SizedBox(height: 16),
-          TextField(
-            controller: _noteCtrl,
-            maxLines: 2,
-            decoration: const InputDecoration(
-              labelText: '备注',
-              hintText: '工种、内容、天气...',
-              prefixIcon: Icon(Icons.notes),
-            ),
+          // Note + Wage display + Save
+          SummaryPanel(
+            isRest: _isRest,
+            isEdit: _isEdit,
+            wage: _wage,
+            noteCtrl: _noteCtrl,
+            onSave: _save,
           ),
-
-          const SizedBox(height: 20),
-          // Wage display
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withOpacity(0.06),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(_isRest ? '休息 · 无工资' : '工资合计',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700])),
-                Text('¥${_wage.toStringAsFixed(2)}',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w300, color: theme.colorScheme.primary)),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 20),
-          FilledButton(
-            onPressed: _save,
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: Text(_isEdit ? '保存修改' : '记录今天', style: const TextStyle(fontSize: 16)),
-          ),
-          const SizedBox(height: 32),
         ],
       ),
     );
   }
 
-  Widget _buildPointFields(ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('工天', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-        const SizedBox(height: 8),
-        Row(
-          children: _dayOptions.map((d) {
-            final sel = _days == d;
-            return Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _days = d),
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  decoration: BoxDecoration(
-                    color: sel ? theme.colorScheme.primary : Colors.grey.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Center(
-                    child: Text(
-                      d == 1.0 ? '全天' : d == 0.5 ? '半天' : '$d天',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: sel ? Colors.white : Colors.grey[700],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 16),
-        DropdownButtonFormField<double>(
-          value: _overtimeHours,
-          decoration: const InputDecoration(labelText: '加班', prefixIcon: Icon(Icons.timelapse)),
-          items: const [
-            DropdownMenuItem(value: 0.0, child: Text('无加班')),
-            DropdownMenuItem(value: 0.5, child: Text('0.5小时')),
-            DropdownMenuItem(value: 1.0, child: Text('1小时')),
-            DropdownMenuItem(value: 2.0, child: Text('2小时')),
-            DropdownMenuItem(value: 3.0, child: Text('3小时')),
-            DropdownMenuItem(value: 4.0, child: Text('4小时')),
-            DropdownMenuItem(value: 5.0, child: Text('5小时')),
-            DropdownMenuItem(value: 6.0, child: Text('6小时')),
-            DropdownMenuItem(value: 7.0, child: Text('7小时')),
-            DropdownMenuItem(value: 8.0, child: Text('8小时')),
-            DropdownMenuItem(value: 9.0, child: Text('9小时')),
-            DropdownMenuItem(value: 10.0, child: Text('10小时')),
-          ],
-          onChanged: (v) => setState(() => _overtimeHours = v ?? 0),
-        ),
-        const SizedBox(height: 12),
-        _numField(_dailyRateCtrl, '日薪', '元/天'),
-        const SizedBox(height: 12),
-        _numField(_overtimeRateCtrl, '加班薪', '元/时'),
-      ],
-    );
-  }
-
-  Widget _buildPkgDayFields() {
-    return Column(
-      children: [
-        _numField(_packageDaysCtrl, '天数', '天'),
-        const SizedBox(height: 12),
-        _numField(_packageDayRateCtrl, '日薪', '元/天'),
-      ],
-    );
-  }
-
-  Widget _buildPkgQtyFields() {
-    return Column(
-      children: [
-        _numField(_quantityCtrl, '工程量', _qtyUnit),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
-          value: _qtyUnit,
-          decoration: const InputDecoration(labelText: '单位', prefixIcon: Icon(Icons.category)),
-          items: _qtyUnits.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
-          onChanged: (v) => setState(() => _qtyUnit = v ?? '平方'),
-        ),
-        const SizedBox(height: 12),
-        _numField(_qtyUnitPriceCtrl, '单价', '元/$_qtyUnit'),
-      ],
-    );
-  }
-
-  Widget _numField(TextEditingController ctrl, String label, String suffix) {
-    return TextField(
-      controller: ctrl,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
-      decoration: InputDecoration(
-        labelText: label,
-        suffixText: suffix,
-      ),
-      onChanged: (_) => setState(() {}),
-    );
-  }
-
   Future<void> _save() async {
+    try {
     final record = WorkRecord(
       id: widget.existingRecord?.id,
       projectId: widget.projectId,
@@ -779,12 +669,12 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
 
     final provider = context.read<WorkProvider>();
     if (_isEdit) {
-      provider.updateRecord(record);
+      await provider.updateRecord(record);
     } else {
-      provider.addRecord(record);
+      await provider.addRecord(record);
     }
     // Save rates for next time
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _ensurePrefs();
     if (_workType == WorkType.point) {
       prefs.setDouble('lastDailyRate', _p(_dailyRateCtrl.text));
       prefs.setDouble('lastOvertimeRate', _p(_overtimeRateCtrl.text));
@@ -798,6 +688,13 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
       SnackBar(content: Text(_isEdit ? '已保存' : '已记录 ✓')),
     );
     Navigator.of(context).pop();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('操作失败: $e')),
+        );
+      }
+    }
   }
 
   void _delete() {
@@ -822,12 +719,16 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
   }
 
   Future<void> _loadSavedRates() async {
-    final prefs = await SharedPreferences.getInstance();
-    _dailyRateCtrl.text = _fmt(prefs.getDouble('lastDailyRate') ?? widget.project.defaultDailyRate);
-    _overtimeRateCtrl.text = _fmt(prefs.getDouble('lastOvertimeRate') ?? widget.project.defaultOvertimeRate);
-    _packageDayRateCtrl.text = _fmt(prefs.getDouble('lastPkgDayRate') ?? widget.project.defaultPackageDayRate);
-    _qtyUnitPriceCtrl.text = _fmt(prefs.getDouble('lastPkgQtyRate') ?? widget.project.defaultPackageQtyRate);
-    _qtyUnit = prefs.getString('lastQtyUnit') ?? (widget.project.defaultQtyUnit.isNotEmpty ? widget.project.defaultQtyUnit : '平方');
+    try {
+      final prefs = await _ensurePrefs();
+      _dailyRateCtrl.text = _fmt(prefs.getDouble('lastDailyRate') ?? widget.project.defaultDailyRate);
+      _overtimeRateCtrl.text = _fmt(prefs.getDouble('lastOvertimeRate') ?? widget.project.defaultOvertimeRate);
+      _packageDayRateCtrl.text = _fmt(prefs.getDouble('lastPkgDayRate') ?? widget.project.defaultPackageDayRate);
+      _qtyUnitPriceCtrl.text = _fmt(prefs.getDouble('lastPkgQtyRate') ?? widget.project.defaultPackageQtyRate);
+      _qtyUnit = prefs.getString('lastQtyUnit') ?? (widget.project.defaultQtyUnit.isNotEmpty ? widget.project.defaultQtyUnit : '平方');
+    } catch (e) {
+      print('加载保存的费率失败: $e');
+    }
   }
 
   String _fmt(double v) {

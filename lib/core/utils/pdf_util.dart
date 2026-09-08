@@ -13,6 +13,7 @@ class PdfUtil {
     int month,
     List<WorkRecord> records,
   ) async {
+    try {
     final pdf = pw.Document();
     final dateFormat = DateFormat('yyyy年MM月');
 
@@ -93,6 +94,10 @@ class PdfUtil {
     );
 
     return pdf.save();
+    } catch (e) {
+      print('生成PDF失败: $e');
+      rethrow;
+    }
   }
 
   static pw.Widget _buildCalendarHeader() {

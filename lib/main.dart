@@ -34,7 +34,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => PhotoEvidenceProvider()),
       ],
       child: MaterialApp(
-        title: '吉工家',
+        title: '格格记工',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         locale: const Locale('zh', 'CN'),

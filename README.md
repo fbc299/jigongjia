@@ -1,16 +1,115 @@
-# jigongjia
+# 格格记工
 
-A new Flutter project.
+> 工人记工记账助手，轻松管理工地考勤、工资、借支和结算。
 
-## Getting Started
+## 功能模块
 
-This project is a starting point for a Flutter application.
+### 📋 记工日历
+- 按天记工（点工/包工），支持半天记录
+- 加班时长记录，日历直接显示加班小时数
+- 工资自动计算（日薪 × 天数 + 加班费）
+- 支持按项目、工人分类管理
 
-A few resources to get you started if this is your first Flutter project:
+### 💰 借支管理
+- 借支记录增删改
+- 累计借支自动统计
+- 滑动删除 + 编辑删除双重方式
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### 📊 结算管理
+- 结算记录永久保留
+- 未结工资实时计算：总工资 - 借支 - 已结算
+- 支持部分结算和全额结算
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### 📸 拍照水印
+- 现场拍照带防篡改水印
+- 水印包含时间、GPS、项目信息
+- 照片自动归档到对应项目
+
+### 📝 开支记录
+- 日常开支记账
+- 按月统计汇总
+
+### 📓 笔记
+- 工地笔记记录
+
+### 📈 统计报表
+- 月度/年度工时统计
+- 考勤表日历视图
+- 未结工资汇总
+- 加班时长统计
+
+### 🔒 隐私模式
+- 一键隐藏所有金额显示
+- 每个页面独立眼睛图标切换
+- 状态自动保存
+
+### 💾 数据备份
+- 本地备份（项目名_日期格式）
+- 网络备份到自建服务器
+- 启动时提示备份，同一天只提醒一次
+- 备份文件支持自定义命名
+
+## 技术栈
+
+- **框架**：Flutter 3.x
+- **状态管理**：Provider
+- **数据库**：sqflite（SQLite）
+- **图表**：fl_chart
+- **PDF**：pdf + printing
+- **架构**：Provider + Repository 模式
+
+## 项目结构
+
+```
+lib/
+├── main.dart              # 入口
+├── app.dart               # 应用主框架
+├── core/
+│   ├── constants/         # 常量
+│   ├── database/          # 数据库
+│   ├── theme/             # 主题
+│   └── utils/             # 工具类
+├── models/                # 数据模型
+├── providers/             # 状态管理
+└── screens/               # 页面
+    └── widgets/           # 公共组件
+```
+
+## 运行
+
+```bash
+flutter pub get
+flutter run
+```
+
+## 构建
+
+```bash
+flutter build apk --release
+```
+
+## 版本历史
+
+### v1.1.1+13
+- 应用更名为"格格记工"
+- 重新设计应用图标
+- 隐私模式：一键隐藏所有金额
+- 修复未结工资显示为0的bug
+- 借支记录支持编辑和删除
+- 备份文件名支持自定义（项目名_日期格式）
+- 首页统计增加加班时长
+- 考评表显示加班总时长
+- 日历加班标记从"加"改为显示实际时长
+- 代码精简优化（-190行）
+
+### v1.1.0+12
+- 10项全面优化
+- 全部异步方法添加 try-catch
+- 数据库操作添加事务支持
+- 备份模块添加重试机制
+- Provider 添加 Selector 支持
+- 代码拆分和测试文件
+
+## 开发者
+
+格格记工团队

@@ -8,26 +8,37 @@ class DatabaseHelper {
   static Database? _database;
 
   Future<Database> get database async {
-    if (_database != null) return _database!;
-    _database = await _initDatabase();
-    return _database!;
+    try {
+      if (_database != null) return _database!;
+      _database = await _initDatabase();
+      return _database!;
+    } catch (e) {
+      print('获取数据库失败: $e');
+      rethrow;
+    }
   }
 
   Future<Database> _initDatabase() async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, AppConstants.dbName);
-    return await openDatabase(
-      path,
-      version: AppConstants.dbVersion,
-      onCreate: _onCreate,
-      onConfigure: (db) async {
-        await db.rawQuery('PRAGMA journal_mode=WAL');
-        await db.rawQuery('PRAGMA foreign_keys=ON');
-      },
-    );
+    try {
+      final dbPath = await getDatabasesPath();
+      final path = join(dbPath, AppConstants.dbName);
+      return await openDatabase(
+        path,
+        version: AppConstants.dbVersion,
+        onCreate: _onCreate,
+        onConfigure: (db) async {
+          await db.rawQuery('PRAGMA journal_mode=WAL');
+          await db.rawQuery('PRAGMA foreign_keys=ON');
+        },
+      );
+    } catch (e) {
+      print('初始化数据库失败: $e');
+      rethrow;
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
+    try {
     await db.execute('''
       CREATE TABLE ${AppConstants.tableProjects} (
         id TEXT PRIMARY KEY,
@@ -148,20 +159,48 @@ class DatabaseHelper {
     await db.execute(
       'CREATE INDEX idx_notes_project ON ${AppConstants.tableNotes} (projectId)',
     );
+    } catch (e) {
+      print('创建数据库表失败: $e');
+      rethrow;
+    }
   }
 
   Future<void> close() async {
-    final db = _database;
-    if (db != null && db.isOpen) {
-      await db.close();
-      _database = null;
+    try {
+      final db = _database;
+      if (db != null && db.isOpen) {
+        await db.close();
+        _database = null;
+      }
+    } catch (e) {
+      print('关闭数据库失败: $e');
+      rethrow;
     }
   }
 
   Future<void> deleteDatabase_() async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, AppConstants.dbName);
-    await deleteDatabase(path);
-    _database = null;
+    try {
+      final dbPath = await getDatabasesPath();
+      final path = join(dbPath, AppConstants.dbName);
+      await deleteDatabase(path);
+      _database = null;
+    } catch (e) {
+      print('删除数据库失败: $e');
+      rethrow;
+    }
+  }
+
+  /// 在事务中执行数据库操作
+  Future<T> txn<T>(Future<T> Function(Transaction txn) action) async {
+    final db = await database;
+    return await db.transaction(action);
+  }
+
+  /// 批量执行数据库操作
+  Future<void> batchOp(void Function(Batch batch) operations) async {
+    final db = await database;
+    final batch = db.batch();
+    operations(batch);
+    await batch.commit();
   }
 }

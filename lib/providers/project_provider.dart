@@ -1,10 +1,24 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import '../core/database/database_helper.dart';
 import '../core/constants/app_constants.dart';
 import '../models/project.dart';
 
 class ProjectProvider extends ChangeNotifier {
+  /// Selector helper: wrap Selector<ProjectProvider, T> to reduce rebuilds.
+  static Widget select<T>({
+    required T Function(ProjectProvider) selector,
+    required Widget Function(BuildContext, T, Widget?) builder,
+    Widget? child,
+  }) {
+    return Selector<ProjectProvider, T>(
+      selector: (_, provider) => selector(provider),
+      builder: builder,
+      child: child,
+    );
+  }
   List<Project> _projects = [];
 
   List<Project> get projects => _projects;
@@ -24,13 +38,18 @@ class ProjectProvider extends ChangeNotifier {
   }
 
   Future<void> loadProjects() async {
-    final db = await DatabaseHelper.instance.database;
-    final maps = await db.query(
-      AppConstants.tableProjects,
-      orderBy: 'createdAt DESC',
-    );
-    _projects = maps.map((m) => Project.fromMap(m)).toList();
-    notifyListeners();
+    try {
+      final db = await DatabaseHelper.instance.database;
+      final maps = await db.query(
+        AppConstants.tableProjects,
+        orderBy: 'createdAt DESC',
+      );
+      _projects = maps.map((m) => Project.fromMap(m)).toList();
+      notifyListeners();
+    } catch (e) {
+      print('加载项目失败: $e');
+      rethrow;
+    }
   }
 
   Future<void> addProject(Project project) async {
@@ -50,35 +69,50 @@ class ProjectProvider extends ChangeNotifier {
   }
 
   Future<void> updateProject(Project project) async {
-    final db = await DatabaseHelper.instance.database;
-    await db.update(
-      AppConstants.tableProjects,
-      project.toMap(),
-      where: 'id = ?',
-      whereArgs: [project.id],
-    );
-    final index = _projects.indexWhere((p) => p.id == project.id);
-    if (index != -1) {
-      _projects[index] = project;
-      notifyListeners();
+    try {
+      final db = await DatabaseHelper.instance.database;
+      await db.update(
+        AppConstants.tableProjects,
+        project.toMap(),
+        where: 'id = ?',
+        whereArgs: [project.id],
+      );
+      final index = _projects.indexWhere((p) => p.id == project.id);
+      if (index != -1) {
+        _projects[index] = project;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('更新项目失败: $e');
+      rethrow;
     }
   }
 
   Future<void> archiveProject(String id) async {
-    final project = getProjectById(id);
-    if (project == null) return;
-    final archived = project.copyWith(isArchived: true);
-    await updateProject(archived);
+    try {
+      final project = getProjectById(id);
+      if (project == null) return;
+      final archived = project.copyWith(isArchived: true);
+      await updateProject(archived);
+    } catch (e) {
+      print('归档项目失败: $e');
+      rethrow;
+    }
   }
 
   Future<void> deleteProject(String id) async {
-    final db = await DatabaseHelper.instance.database;
-    await db.delete(
-      AppConstants.tableProjects,
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-    _projects.removeWhere((p) => p.id == id);
-    notifyListeners();
+    try {
+      final db = await DatabaseHelper.instance.database;
+      await db.delete(
+        AppConstants.tableProjects,
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      _projects.removeWhere((p) => p.id == id);
+      notifyListeners();
+    } catch (e) {
+      print('删除项目失败: $e');
+      rethrow;
+    }
   }
 }

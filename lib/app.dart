@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:jigongjia/providers/project_provider.dart';
 import 'package:jigongjia/providers/work_provider.dart';
@@ -13,6 +15,7 @@ import 'package:jigongjia/screens/home_screen.dart';
 import 'package:jigongjia/screens/stats_screen.dart';
 import 'package:jigongjia/screens/settings_screen.dart';
 import 'package:jigongjia/core/utils/network_backup.dart';
+import 'package:jigongjia/core/utils/privacy_service.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -30,37 +33,68 @@ class _AppShellState extends State<AppShell> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProjectProvider>().loadProjects();
-      _autoBackup();
+      PrivacyService().load();
+      _promptBackup();
     });
   }
 
-  Future<void> _autoBackup() async {
+  /// Prompt user to backup instead of auto-backing up silently.
+  Future<void> _promptBackup() async {
     try {
       final service = NetworkBackupService();
       await service.load();
       final ok = await service.ping();
-      if (!ok) return;
-      await Future.delayed(const Duration(seconds: 2));
+      if (!ok || !mounted) return;
+
+      // Check if already backed up today
+      final prefs = await SharedPreferences.getInstance();
+      final lastBackup = prefs.getString('last_backup_date') ?? '';
+      final today = DateFormat('yyyyMMdd').format(DateTime.now());
+      if (lastBackup == today) return;
+
       if (!mounted) return;
-      // Delete old backups first (keep only latest)
-      try {
-        final backups = await service.list();
-        for (final b in backups) {
-          await service.delete(b['name']);
-        }
-      } catch (_) {}
-      if (!mounted) return;
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('数据备份'),
+          content: const Text('检测到备份服务器可用，是否备份当前数据？'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('跳过'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('备份'),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true || !mounted) return;
+
+      // Build backup data
       final ctx = context;
+      final projects = ctx.read<ProjectProvider>().projects;
       final data = json.encode({
         'version': 1, 'exportedAt': DateTime.now().toIso8601String(),
-        'projects': ctx.read<ProjectProvider>().projects.map((p) => p.toMap()).toList(),
+        'projects': projects.map((p) => p.toMap()).toList(),
         'workRecords': ctx.read<WorkProvider>().records.map((r) => r.toMap()).toList(),
         'borrowRecords': ctx.read<BorrowProvider>().records.map((r) => r.toMap()).toList(),
         'settlements': ctx.read<SettlementProvider>().settlements.map((s) => s.toMap()).toList(),
         'expenses': ctx.read<ExpenseProvider>().expenses.map((e) => e.toMap()).toList(),
         'notes': ctx.read<NoteProvider>().notes.map((n) => n.toMap()).toList(),
       });
-      await service.upload(data);
+      final date = DateFormat('yyyyMMdd').format(DateTime.now());
+      final projectNames = projects.map((p) => p.name).join('+');
+      final backupName = '${projectNames}_$date.json';
+      await service.upload(data, backupName: backupName);
+      await prefs.setString('last_backup_date', today);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('备份成功')),
+        );
+      }
     } catch (_) {}
   }
 
@@ -73,9 +107,8 @@ class _AppShellState extends State<AppShell> {
       _selectedProjectId = projects.first.id;
     }
 
-    final selectedProject = projects.where((p) => p.id == _selectedProjectId).isEmpty
-        ? (projects.isNotEmpty ? projects.first : null)
-        : projects.firstWhere((p) => p.id == _selectedProjectId);
+    final selectedProject = projects.where((p) => p.id == _selectedProjectId).firstOrNull
+        ?? (projects.isNotEmpty ? projects.first : null);
 
     // Build screens dynamically
     final screens = <Widget>[

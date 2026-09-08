@@ -258,13 +258,21 @@ class _PhotoEvidenceScreenState extends State<PhotoEvidenceScreen> {
     );
 
     if (confirm == true && mounted) {
-      final provider = context.read<PhotoEvidenceProvider>();
-      await provider.deletePhoto(photo.id);
+      try {
+        final provider = context.read<PhotoEvidenceProvider>();
+        await provider.deletePhoto(photo.id);
 
-      // Also delete the file
-      final file = File(photo.filePath);
-      if (await file.exists()) {
-        await file.delete();
+        // Also delete the file
+        final file = File(photo.filePath);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('操作失败: $e')),
+          );
+        }
       }
     }
   }

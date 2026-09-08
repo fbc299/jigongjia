@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import 'package:jigongjia/models/settlement.dart';
 import 'package:jigongjia/providers/settlement_provider.dart';
+import 'package:jigongjia/core/utils/privacy_service.dart';
 import 'package:jigongjia/providers/work_provider.dart';
 import 'package:jigongjia/providers/borrow_provider.dart';
 import 'package:jigongjia/screens/widgets/record_tile.dart';
@@ -39,6 +40,15 @@ class _SettlementScreenState extends State<SettlementScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('结算 - ${widget.projectName}'),
+        actions: [
+          ValueListenableBuilder<bool>(
+            valueListenable: PrivacyService().isHidden,
+            builder: (_, hidden, __) => IconButton(
+              icon: Icon(hidden ? Icons.visibility_off : Icons.visibility),
+              onPressed: () => PrivacyService().toggle(),
+            ),
+          ),
+        ],
       ),
       body: Consumer3<WorkProvider, BorrowProvider, SettlementProvider>(
         builder: (context, workProv, borrowProv, settleProv, _) {
@@ -51,7 +61,7 @@ class _SettlementScreenState extends State<SettlementScreen> {
               settleProv.getSettlementsByProject(widget.projectId);
           final totalSettled =
               settlements.fold<double>(0, (sum, s) => sum + s.amount);
-          final unpaid = totalWage - totalSettled;
+          final unpaid = totalWage - totalBorrowed - totalSettled;
 
           settlements.sort((a, b) => b.date.compareTo(a.date));
 
@@ -137,10 +147,18 @@ class _SettlementScreenState extends State<SettlementScreen> {
         );
       },
       onDismissed: (_) {
-        context.read<SettlementProvider>().deleteSettlement(settlement.id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('结算记录已删除')),
-        );
+        try {
+          context.read<SettlementProvider>().deleteSettlement(settlement.id);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('结算记录已删除')),
+          );
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('操作失败: $e')),
+            );
+          }
+        }
       },
       child: RecordTile(
         recordType: RecordType.settlement,
@@ -261,23 +279,33 @@ class _SettlementScreenState extends State<SettlementScreen> {
                   child: const Text('取消'),
                 ),
                 FilledButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (formKey.currentState!.validate()) {
                       final amount =
                           double.tryParse(amountController.text.trim()) ?? 0;
                       Navigator.of(dialogContext).pop();
-                      context.read<SettlementProvider>().addSettlement(
-                            Settlement(
-                              projectId: widget.projectId,
-                              amount: amount,
-                              date: selectedDate,
-                              type: selectedType,
-                              note: noteController.text.trim(),
-                            ),
+                      try {
+                        await context.read<SettlementProvider>().addSettlement(
+                              Settlement(
+                                projectId: widget.projectId,
+                                amount: amount,
+                                date: selectedDate,
+                                type: selectedType,
+                                note: noteController.text.trim(),
+                              ),
+                            );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('结算成功')),
                           );
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('结算成功')),
-                      );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('操作失败: $e')),
+                          );
+                        }
+                      }
                     }
                   },
                   child: const Text('确认'),
@@ -373,7 +401,7 @@ class _SummaryRow extends StatelessWidget {
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
         ),
         Text(
-          '¥${value.toStringAsFixed(2)}',
+          PrivacyService.format(value, hide: PrivacyService().isHidden.value),
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.bold,

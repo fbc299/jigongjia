@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:jigongjia/core/utils/privacy_service.dart';
 
 import 'package:jigongjia/providers/project_provider.dart';
 import 'package:jigongjia/providers/work_provider.dart';
@@ -37,7 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('吉工家'),
+        title: const Text('格格记工'),
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -250,6 +251,10 @@ class _ProjectCard extends StatelessWidget {
           0,
           (sum, r) => sum + r.days + r.packageDays,
         );
+        final totalOvertime = workRecords.fold<double>(
+          0,
+          (sum, r) => sum + r.overtimeHours,
+        );
         final totalWage = workRecords.fold<double>(
           0,
           (sum, r) => sum + r.totalWage,
@@ -260,7 +265,7 @@ class _ProjectCard extends StatelessWidget {
           0,
           (sum, s) => sum + s.amount,
         );
-        final unpaidWage = totalWage - totalSettled;
+        final unpaidWage = totalWage - totalBorrowed - totalSettled;
 
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
@@ -324,8 +329,14 @@ class _ProjectCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 16),
                       _StatChip(
+                        icon: Icons.access_time,
+                        label: '加班 ${totalOvertime.toStringAsFixed(1)}h',
+                        color: Colors.orange,
+                      ),
+                      const SizedBox(width: 16),
+                      _StatChip(
                         icon: Icons.attach_money,
-                        label: '未发 ¥${unpaidWage.toStringAsFixed(0)}',
+                        label: '未发 ${PrivacyService.format(unpaidWage, hide: PrivacyService().isHidden.value)}',
                         color: unpaidWage > 0 ? Colors.green : Colors.grey,
                       ),
                     ],

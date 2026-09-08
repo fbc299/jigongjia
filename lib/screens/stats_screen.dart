@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:jigongjia/core/utils/privacy_service.dart';
 import 'package:printing/printing.dart';
 
 import '../providers/project_provider.dart';
@@ -26,6 +27,8 @@ class _StatsScreenState extends State<StatsScreen>
   late TabController _tabController;
   String? _selectedProjectId;
   DateTime _currentMonth = DateTime(DateTime.now().year, DateTime.now().month);
+
+
 
   @override
   void initState() {
@@ -62,7 +65,16 @@ class _StatsScreenState extends State<StatsScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('记工统计'),
+        title: const Text('统计'),
+                actions: [
+                  ValueListenableBuilder<bool>(
+                    valueListenable: PrivacyService().isHidden,
+                    builder: (_, hidden, __) => IconButton(
+                      icon: Icon(hidden ? Icons.visibility_off : Icons.visibility),
+                      onPressed: () => PrivacyService().toggle(),
+                    ),
+                  ),
+                ],
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -127,7 +139,9 @@ class _StatsScreenState extends State<StatsScreen>
                     (p) => DropdownMenuItem(value: p.id, child: Text(p.name)),
                   )
                   .toList(),
-              onChanged: (v) => setState(() => _selectedProjectId = v),
+              onChanged: (v) => setState(() {
+                _selectedProjectId = v;
+              }),
             ),
           ),
         ],
@@ -156,6 +170,7 @@ class _StatsScreenState extends State<StatsScreen>
 
     final workDays = records.where((r) => !r.isRest).length;
     final overtimeDays = records.where((r) => r.overtimeHours > 0).length;
+    final totalOvertimeHours = records.fold<double>(0, (sum, r) => sum + r.overtimeHours);
     final restDays = records.where((r) => r.isRest).length;
     final totalDays = records.length;
 
@@ -168,12 +183,12 @@ class _StatsScreenState extends State<StatsScreen>
               children: [
                 _buildWeekdayHeader(),
                 const SizedBox(height: 4),
-                _buildCalendarGrid(attendance),
+                _buildCalendarGrid(attendance, records),
                 const SizedBox(height: 16),
                 _buildAttendanceLegend(),
                 const SizedBox(height: 12),
                 _buildAttendanceSummary(
-                    workDays, overtimeDays, restDays, totalDays),
+                    workDays, overtimeDays, totalOvertimeHours, restDays, totalDays),
               ],
             ),
           ),
@@ -200,7 +215,7 @@ class _StatsScreenState extends State<StatsScreen>
     );
   }
 
-  Widget _buildCalendarGrid(Map<DateTime, AttendanceStatus> attendance) {
+  Widget _buildCalendarGrid(Map<DateTime, AttendanceStatus> attendance, List<WorkRecord> records) {
     final firstDay = DateTime(_currentMonth.year, _currentMonth.month, 1);
     final lastDay = DateTime(_currentMonth.year, _currentMonth.month + 1, 0);
     final daysInMonth = lastDay.day;
@@ -226,7 +241,12 @@ class _StatsScreenState extends State<StatsScreen>
             DateTime(_currentMonth.year, _currentMonth.month, day);
         final status = attendance[dateKey];
         final color = _statusColor(status);
-        final label = _statusLabel(status);
+        // 查找当天的记录，获取加班时长
+        final dayRecord = records.where((r) => r.date.day == day && r.date.month == _currentMonth.month && r.date.year == _currentMonth.year).firstOrNull;
+        final overtimeHours = dayRecord?.overtimeHours ?? 0;
+        final label = status == AttendanceStatus.overtime && overtimeHours > 0
+            ? '${overtimeHours.toStringAsFixed(overtimeHours == overtimeHours.roundToDouble() ? 0 : 1)}h'
+            : _statusLabel(status);
 
         return Container(
           margin: const EdgeInsets.all(2),
@@ -324,7 +344,7 @@ class _StatsScreenState extends State<StatsScreen>
   }
 
   Widget _buildAttendanceSummary(
-      int workDays, int overtimeDays, int restDays, int totalDays) {
+      int workDays, int overtimeDays, double totalOvertimeHours, int restDays, int totalDays) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -332,7 +352,7 @@ class _StatsScreenState extends State<StatsScreen>
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _summaryItem('出勤', '$workDays天', Colors.green),
-            _summaryItem('加班', '$overtimeDays天', Colors.blue),
+            _summaryItem('加班', '${totalOvertimeHours.toStringAsFixed(totalOvertimeHours == totalOvertimeHours.roundToDouble() ? 0 : 1)}h', Colors.blue),
             _summaryItem('休息', '$restDays天', Colors.grey),
             _summaryItem('总工天', '$totalDays天',
                 Theme.of(context).colorScheme.primary),
@@ -465,7 +485,7 @@ class _StatsScreenState extends State<StatsScreen>
                   icon: Icons.money_off,
                   label: '总借支',
                   value:
-                      '¥${numberFormat.format(monthlyStats.borrowAmount)}',
+                      PrivacyService.format(monthlyStats.borrowAmount, hide: PrivacyService().isHidden.value),
                   color: Colors.orange,
                 ),
               ),
@@ -476,7 +496,7 @@ class _StatsScreenState extends State<StatsScreen>
             icon: Icons.account_balance,
             label: '未结工资',
             value:
-                '¥${numberFormat.format(monthlyStats.unpaidAmount)}',
+                PrivacyService.format(monthlyStats.unpaidAmount, hide: PrivacyService().isHidden.value),
             color: Colors.red.shade400,
           ),
           const SizedBox(height: 20),

@@ -13,7 +13,6 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      fontFamily: null,
       appBarTheme: AppBarTheme(
         centerTitle: true,
         elevation: 0,
@@ -85,7 +84,6 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      fontFamily: null,
       appBarTheme: AppBarTheme(
         centerTitle: true,
         elevation: 0,

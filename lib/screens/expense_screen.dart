@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:jigongjia/core/utils/privacy_service.dart';
 
 import '../providers/expense_provider.dart';
 import '../models/expense.dart';
@@ -60,7 +61,6 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       ..sort((a, b) => b.date.compareTo(a.date));
 
     final numberFormat = NumberFormat('#,##0.00');
-    final monthFormat = DateFormat('yyyy年MM月');
 
     return Scaffold(
       appBar: AppBar(
@@ -68,120 +68,12 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       ),
       body: Column(
         children: [
-          // Month navigator
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.chevron_left),
-                  onPressed: _prevMonth,
-                ),
-                Text(
-                  monthFormat.format(_currentMonth),
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right),
-                  onPressed: _nextMonth,
-                ),
-              ],
-            ),
-          ),
-          // Monthly total
-          Card(
-            margin: const EdgeInsets.symmetric(horizontal: 12),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  Text(
-                    '本月支出',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '¥${numberFormat.format(monthlyTotal)}',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          _buildHeader(context, monthlyTotal, categoryTotals, numberFormat),
           const SizedBox(height: 12),
-          // Category breakdown
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: _categories.map((cat) {
-                final amount = categoryTotals[cat] ?? 0;
-                return Expanded(
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 12, horizontal: 4),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _categoryIcons[cat],
-                            color: _categoryColors[cat],
-                            size: 20,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            cat,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '¥${numberFormat.format(amount)}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                              color: _categoryColors[cat],
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Expense list
           Expanded(
             child: monthExpenses.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.receipt_long_outlined,
-                            size: 56,
-                            color: Theme.of(context).colorScheme.outline),
-                        const SizedBox(height: 12),
-                        const Text('本月暂无开支记录'),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: monthExpenses.length,
-                    itemBuilder: (context, index) {
-                      final expense = monthExpenses[index];
-                      return _buildExpenseTile(expense, numberFormat);
-                    },
-                  ),
+                ? _buildEmptyState(context)
+                : _buildExpenseList(monthExpenses, numberFormat),
           ),
         ],
       ),
@@ -192,7 +84,136 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     );
   }
 
-  Widget _buildExpenseTile(Expense expense, NumberFormat numberFormat) {
+  Widget _buildHeader(
+    BuildContext context,
+    double monthlyTotal,
+    Map<String, double> categoryTotals,
+    NumberFormat numberFormat,
+  ) {
+    final monthFormat = DateFormat('yyyy年MM月');
+    return Column(
+      children: [
+        // Month navigator
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left),
+                onPressed: _prevMonth,
+              ),
+              Text(
+                monthFormat.format(_currentMonth),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right),
+                onPressed: _nextMonth,
+              ),
+            ],
+          ),
+        ),
+        // Monthly total
+        Card(
+          margin: const EdgeInsets.symmetric(horizontal: 12),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                Text(
+                  '本月支出',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  PrivacyService.format(monthlyTotal, hide: PrivacyService().isHidden.value),
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Category breakdown
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: _categories.map((cat) {
+              final amount = categoryTotals[cat] ?? 0;
+              return Expanded(
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 12, horizontal: 4),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _categoryIcons[cat],
+                          color: _categoryColors[cat],
+                          size: 20,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          cat,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          PrivacyService.format(amount, hide: PrivacyService().isHidden.value),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                            color: _categoryColors[cat],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.receipt_long_outlined,
+              size: 56,
+              color: Theme.of(context).colorScheme.outline),
+          const SizedBox(height: 12),
+          const Text('本月暂无开支记录'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExpenseList(List<Expense> monthExpenses, NumberFormat numberFormat) {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      itemCount: monthExpenses.length,
+      itemBuilder: (context, index) {
+        final expense = monthExpenses[index];
+        return _buildExpenseItem(expense, numberFormat);
+      },
+    );
+  }
+
+  Widget _buildExpenseItem(Expense expense, NumberFormat numberFormat) {
     final dateFormat = DateFormat('MM/dd');
     final catColor = _categoryColors[expense.category] ?? Colors.grey;
 
@@ -223,7 +244,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
             ),
           ),
           title: Text(
-            '¥${numberFormat.format(expense.amount)}',
+            PrivacyService.format(expense.amount, hide: PrivacyService().isHidden.value),
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           subtitle: Text(
@@ -326,22 +347,30 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     );
 
     if (result == true && mounted) {
-      final amount = double.tryParse(amountController.text);
-      if (amount == null || amount <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('请输入有效金额')),
+      try {
+        final amount = double.tryParse(amountController.text);
+        if (amount == null || amount <= 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('请输入有效金额')),
+          );
+          return;
+        }
+
+        final expense = Expense(
+          amount: amount,
+          category: selectedCategory,
+          date: selectedDate,
+          note: noteController.text.trim(),
         );
-        return;
+
+        await context.read<ExpenseProvider>().addExpense(expense);
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('操作失败: $e')),
+          );
+        }
       }
-
-      final expense = Expense(
-        amount: amount,
-        category: selectedCategory,
-        date: selectedDate,
-        note: noteController.text.trim(),
-      );
-
-      await context.read<ExpenseProvider>().addExpense(expense);
     }
   }
 }

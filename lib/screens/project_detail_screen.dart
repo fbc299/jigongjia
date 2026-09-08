@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:jigongjia/core/utils/privacy_service.dart';
 
 import 'package:jigongjia/models/project.dart';
 import 'package:jigongjia/models/work_record.dart';
@@ -55,7 +56,18 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
     final project = context.watch<ProjectProvider>().getProjectById(widget.projectId);
     if (project == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('项目详情')),
+        appBar: AppBar(
+        title: const Text('项目详情'),
+        actions: [
+          ValueListenableBuilder<bool>(
+            valueListenable: PrivacyService().isHidden,
+            builder: (_, hidden, __) => IconButton(
+              icon: Icon(hidden ? Icons.visibility_off : Icons.visibility),
+              onPressed: () => PrivacyService().toggle(),
+            ),
+          ),
+        ],
+      ),
         body: const Center(child: Text('项目不存在')),
       );
     }
@@ -119,7 +131,7 @@ class _OverviewSection extends StatelessWidget {
           0,
           (sum, s) => sum + s.amount,
         );
-        final unpaid = totalWage - totalSettled;
+        final unpaid = totalWage - totalBorrowed - totalSettled;
 
         return Container(
           padding: const EdgeInsets.all(16),
@@ -141,7 +153,7 @@ class _OverviewSection extends StatelessWidget {
                     child: StatCard(
                       icon: Icons.payments,
                       label: '总工资',
-                      value: '¥${totalWage.toStringAsFixed(0)}',
+                      value: PrivacyService.format(totalWage, hide: PrivacyService().isHidden.value),
                       color: Colors.green,
                     ),
                   ),
@@ -154,7 +166,7 @@ class _OverviewSection extends StatelessWidget {
                     child: StatCard(
                       icon: Icons.money_off,
                       label: '累计借支',
-                      value: '¥${totalBorrowed.toStringAsFixed(0)}',
+                      value: PrivacyService.format(totalBorrowed, hide: PrivacyService().isHidden.value),
                       color: Colors.orange,
                     ),
                   ),
@@ -163,7 +175,7 @@ class _OverviewSection extends StatelessWidget {
                     child: StatCard(
                       icon: Icons.account_balance_wallet,
                       label: '未结工资',
-                      value: '¥${unpaid.toStringAsFixed(0)}',
+                      value: PrivacyService.format(unpaid, hide: PrivacyService().isHidden.value),
                       color: unpaid > 0 ? Colors.red : Colors.grey,
                     ),
                   ),
@@ -433,7 +445,7 @@ class _DiaryCard extends StatelessWidget {
             ),
             // Wage
             Text(
-              record.isRest ? '—' : '¥${record.totalWage.toStringAsFixed(0)}',
+              record.isRest ? '—' : PrivacyService.format(record.totalWage, hide: PrivacyService().isHidden.value),
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w400,
@@ -502,10 +514,18 @@ class _BorrowRecordsTab extends StatelessWidget {
                 );
               },
               onDismissed: (_) {
-                context.read<BorrowProvider>().deleteRecord(record.id);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('借支记录已删除')),
-                );
+                try {
+                  context.read<BorrowProvider>().deleteRecord(record.id);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('借支记录已删除')),
+                  );
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('操作失败: $e')),
+                    );
+                  }
+                }
               },
               child: RecordTile(
                 recordType: RecordType.borrow,
@@ -596,12 +616,20 @@ class _SettlementRecordsTab extends StatelessWidget {
                 );
               },
               onDismissed: (_) {
-                context
-                    .read<SettlementProvider>()
-                    .deleteSettlement(settlement.id);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('结算记录已删除')),
-                );
+                try {
+                  context
+                      .read<SettlementProvider>()
+                      .deleteSettlement(settlement.id);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('结算记录已删除')),
+                  );
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('操作失败: $e')),
+                    );
+                  }
+                }
               },
               child: RecordTile(
                 recordType: RecordType.settlement,

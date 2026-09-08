@@ -60,6 +60,33 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
+// ===================== Shared import helper =====================
+
+Future<void> _importFromBackupJson(BuildContext context, String jsonStr) async {
+  final backup = json.decode(jsonStr) as Map<String, dynamic>;
+  final ctx = context;
+  final proj = ctx.read<ProjectProvider>();
+  final work = ctx.read<WorkProvider>();
+  final borrow = ctx.read<BorrowProvider>();
+  final settle = ctx.read<SettlementProvider>();
+  final expense = ctx.read<ExpenseProvider>();
+  final note = ctx.read<NoteProvider>();
+
+  for (final p in List.from(proj.projects)) await proj.deleteProject(p.id);
+  for (final r in List.from(work.records)) await work.deleteRecord(r.id);
+  for (final r in List.from(borrow.records)) await borrow.deleteRecord(r.id);
+  for (final s in List.from(settle.settlements)) await settle.deleteSettlement(s.id);
+  for (final e in List.from(expense.expenses)) await expense.deleteExpense(e.id);
+  for (final n in List.from(note.notes)) await note.deleteNote(n.id);
+
+  for (final m in (backup['projects'] as List? ?? [])) await proj.addProject(Project.fromMap(m));
+  for (final m in (backup['workRecords'] as List? ?? [])) await work.addRecord(WorkRecord.fromMap(m));
+  for (final m in (backup['borrowRecords'] as List? ?? [])) await borrow.addRecord(BorrowRecord.fromMap(m));
+  for (final m in (backup['settlements'] as List? ?? [])) await settle.addSettlement(Settlement.fromMap(m));
+  for (final m in (backup['expenses'] as List? ?? [])) await expense.addExpense(Expense.fromMap(m));
+  for (final m in (backup['notes'] as List? ?? [])) await note.addNote(Note.fromMap(m));
+}
+
 // ===================== Project Management =====================
 
 class _ProjectManagementSection extends StatelessWidget {
@@ -108,13 +135,21 @@ class _ProjectManagementSection extends StatelessWidget {
   }
 
   Future<void> _restoreProject(BuildContext context, Project project) async {
-    await context
-        .read<ProjectProvider>()
-        .updateProject(project.copyWith(isArchived: false));
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已恢复项目: ${project.name}')),
-      );
+    try {
+      await context
+          .read<ProjectProvider>()
+          .updateProject(project.copyWith(isArchived: false));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已恢复项目: \${project.name}')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('操作失败: $e')),
+        );
+      }
     }
   }
 
@@ -138,10 +173,18 @@ class _ProjectManagementSection extends StatelessWidget {
     );
 
     if (confirm == true && context.mounted) {
-      await context.read<ProjectProvider>().deleteProject(project.id);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已删除项目: ${project.name}')),
-      );
+      try {
+        await context.read<ProjectProvider>().deleteProject(project.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已删除项目: \${project.name}')),
+        );
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('操作失败: $e')),
+          );
+        }
+      }
     }
   }
 }
@@ -192,8 +235,9 @@ class _DataManagementSection extends StatelessWidget {
       };
 
       final jsonStr = const JsonEncoder.withIndent('  ').convert(backup);
-      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final fileName = 'jigongjia_backup_$timestamp.json';
+      final date = DateFormat('yyyyMMdd').format(DateTime.now());
+      final projectNames = projectProvider.projects.map((p) => p.name).join('+');
+      final fileName = '${projectNames}_$date.json';
 
       final tempDir = await getTemporaryDirectory();
       final file = File('${tempDir.path}/$fileName');
@@ -201,7 +245,7 @@ class _DataManagementSection extends StatelessWidget {
 
       await Share.shareXFiles(
         [XFile(file.path)],
-        subject: '吉工家数据备份',
+        subject: '格格记工数据备份',
       );
 
       if (context.mounted) {
@@ -264,52 +308,7 @@ class _DataManagementSection extends StatelessWidget {
         return;
       }
 
-      final projectProvider = context.read<ProjectProvider>();
-      final workProvider = context.read<WorkProvider>();
-      final borrowProvider = context.read<BorrowProvider>();
-      final settlementProvider = context.read<SettlementProvider>();
-      final expenseProvider = context.read<ExpenseProvider>();
-      final noteProvider = context.read<NoteProvider>();
-
-      // Delete existing data
-      for (final p in List.from(projectProvider.projects)) {
-        await projectProvider.deleteProject(p.id);
-      }
-      for (final r in List.from(workProvider.records)) {
-        await workProvider.deleteRecord(r.id);
-      }
-      for (final r in List.from(borrowProvider.records)) {
-        await borrowProvider.deleteRecord(r.id);
-      }
-      for (final s in List.from(settlementProvider.settlements)) {
-        await settlementProvider.deleteSettlement(s.id);
-      }
-      for (final e in List.from(expenseProvider.expenses)) {
-        await expenseProvider.deleteExpense(e.id);
-      }
-      for (final n in List.from(noteProvider.notes)) {
-        await noteProvider.deleteNote(n.id);
-      }
-
-      // Import new data
-      for (final m in (backup['projects'] as List? ?? [])) {
-        await projectProvider.addProject(Project.fromMap(m as Map<String, dynamic>));
-      }
-      for (final m in (backup['workRecords'] as List? ?? [])) {
-        await workProvider.addRecord(WorkRecord.fromMap(m as Map<String, dynamic>));
-      }
-      for (final m in (backup['borrowRecords'] as List? ?? [])) {
-        await borrowProvider.addRecord(BorrowRecord.fromMap(m as Map<String, dynamic>));
-      }
-      for (final m in (backup['settlements'] as List? ?? [])) {
-        await settlementProvider.addSettlement(Settlement.fromMap(m as Map<String, dynamic>));
-      }
-      for (final m in (backup['expenses'] as List? ?? [])) {
-        await expenseProvider.addExpense(Expense.fromMap(m as Map<String, dynamic>));
-      }
-      for (final m in (backup['notes'] as List? ?? [])) {
-        await noteProvider.addNote(Note.fromMap(m as Map<String, dynamic>));
-      }
+      await _importFromBackupJson(context, jsonStr);
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -391,11 +390,19 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
           onTap: _connected ? _upload : null,
         ),
         if (_backups.isNotEmpty) ...[
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text('云端备份', style: TextStyle(fontSize: 13, color: Colors.grey)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text('云端备份', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh, size: 18, color: Colors.grey),
+                  tooltip: '刷新',
+                  onPressed: _refreshList,
+                ),
+              ],
             ),
           ),
           ..._backups.map((b) => ListTile(
@@ -455,12 +462,22 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
   Future<void> _upload() async {
     setState(() => _loading = true);
     try {
-      // Delete old backups first (keep only latest)
-      for (final b in _backups) {
-        try { await _service.delete(b['name']); } catch (_) {}
-      }
+      final projects = context.read<ProjectProvider>().projects;
+      final date = DateFormat('yyyyMMdd').format(DateTime.now());
+      final projectNames = projects.map((p) => p.name).join('+');
+      final backupName = '${projectNames}_$date.json';
+
       final jsonStr = _buildBackupJson();
-      await _service.upload(jsonStr);
+      await _service.upload(jsonStr, backupName: backupName);
+      // Upload succeeded — now delete old backups, keep only the latest
+      final list = await _service.list();
+      if (list.length > 1) {
+        // Sort by name (timestamp-based) descending, skip the first (newest)
+        list.sort((a, b) => (b['name'] ?? '').compareTo(a['name'] ?? ''));
+        for (var i = 1; i < list.length; i++) {
+          try { await _service.delete(list[i]['name']); } catch (_) {}
+        }
+      }
       _backups = await _service.list();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('备份上传成功 ✓')));
     } catch (e) {
@@ -516,6 +533,13 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
     }
   }
 
+  Future<void> _refreshList() async {
+    try {
+      final list = await _service.list();
+      if (mounted) setState(() => _backups = list);
+    } catch (_) {}
+  }
+
   String _buildBackupJson() {
     final ctx = context;
     return json.encode({
@@ -530,28 +554,15 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
   }
 
   Future<void> _importFromJson(String jsonStr) async {
-    final backup = json.decode(jsonStr) as Map<String, dynamic>;
-    final ctx = context;
-    final proj = ctx.read<ProjectProvider>();
-    final work = ctx.read<WorkProvider>();
-    final borrow = ctx.read<BorrowProvider>();
-    final settle = ctx.read<SettlementProvider>();
-    final expense = ctx.read<ExpenseProvider>();
-    final note = ctx.read<NoteProvider>();
-
-    for (final p in List.from(proj.projects)) await proj.deleteProject(p.id);
-    for (final r in List.from(work.records)) await work.deleteRecord(r.id);
-    for (final r in List.from(borrow.records)) await borrow.deleteRecord(r.id);
-    for (final s in List.from(settle.settlements)) await settle.deleteSettlement(s.id);
-    for (final e in List.from(expense.expenses)) await expense.deleteExpense(e.id);
-    for (final n in List.from(note.notes)) await note.deleteNote(n.id);
-
-    for (final m in (backup['projects'] as List? ?? [])) await proj.addProject(Project.fromMap(m));
-    for (final m in (backup['workRecords'] as List? ?? [])) await work.addRecord(WorkRecord.fromMap(m));
-    for (final m in (backup['borrowRecords'] as List? ?? [])) await borrow.addRecord(BorrowRecord.fromMap(m));
-    for (final m in (backup['settlements'] as List? ?? [])) await settle.addSettlement(Settlement.fromMap(m));
-    for (final m in (backup['expenses'] as List? ?? [])) await expense.addExpense(Expense.fromMap(m));
-    for (final m in (backup['notes'] as List? ?? [])) await note.addNote(Note.fromMap(m));
+    try {
+      await _importFromBackupJson(context, jsonStr);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('操作失败: $e')),
+        );
+      }
+    }
   }
 }
 
@@ -567,17 +578,17 @@ class _AboutSection extends StatelessWidget {
         ListTile(
           leading: Icon(Icons.info_outline),
           title: Text('版本'),
-          subtitle: const Text('v1.1.0'),
+          subtitle: Text('v1.1.0'),
         ),
         ListTile(
           leading: Icon(Icons.code),
           title: Text('开发者'),
-          subtitle: Text('吉工家团队'),
+          subtitle: Text('格格记工'),
         ),
         ListTile(
           leading: Icon(Icons.description_outlined),
           title: Text('应用介绍'),
-          subtitle: Text('吉工家 - 工人记工记账助手，轻松管理工地考勤、工资、借支和结算'),
+          subtitle: Text('格格记工 - 工人记工记账助手，轻松管理工地考勤、工资、借支和结算'),
         ),
       ],
     );

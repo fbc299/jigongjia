@@ -12,6 +12,7 @@ class WatermarkUtil {
     String projectName,
     DateTime timestamp,
   ) async {
+    try {
     final file = File(imagePath);
     if (!await file.exists()) {
       throw FileSystemException('Image file not found', imagePath);
@@ -64,5 +65,9 @@ class WatermarkUtil {
     await outputFile.writeAsBytes(encodedBytes);
 
     return outputPath;
+    } catch (e) {
+      print('添加水印失败: $e');
+      rethrow;
+    }
   }
 }

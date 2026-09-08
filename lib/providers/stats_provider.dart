@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:provider/provider.dart';
 import '../models/work_record.dart';
 import 'work_provider.dart';
 import 'borrow_provider.dart';
@@ -44,6 +46,19 @@ class MonthlyStats {
 }
 
 class StatsProvider extends ChangeNotifier {
+  /// Selector helper: wrap Selector<StatsProvider, T> to reduce rebuilds.
+  static Widget select<T>({
+    required T Function(StatsProvider) selector,
+    required Widget Function(BuildContext, T, Widget?) builder,
+    Widget? child,
+  }) {
+    return Selector<StatsProvider, T>(
+      selector: (_, provider) => selector(provider),
+      builder: builder,
+      child: child,
+    );
+  }
+
   final WorkProvider _workProvider;
   final BorrowProvider _borrowProvider;
   final SettlementProvider _settlementProvider;

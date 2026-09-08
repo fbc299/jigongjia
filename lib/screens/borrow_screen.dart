@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import 'package:jigongjia/models/borrow_record.dart';
 import 'package:jigongjia/providers/borrow_provider.dart';
+import 'package:jigongjia/core/utils/privacy_service.dart';
 import 'package:jigongjia/screens/widgets/record_tile.dart';
 
 class BorrowScreen extends StatefulWidget {
@@ -35,6 +36,15 @@ class _BorrowScreenState extends State<BorrowScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('借支 - ${widget.projectName}'),
+        actions: [
+          ValueListenableBuilder<bool>(
+            valueListenable: PrivacyService().isHidden,
+            builder: (_, hidden, __) => IconButton(
+              icon: Icon(hidden ? Icons.visibility_off : Icons.visibility),
+              onPressed: () => PrivacyService().toggle(),
+            ),
+          ),
+        ],
       ),
       body: Consumer<BorrowProvider>(
         builder: (context, borrowProv, _) {
@@ -114,16 +124,27 @@ class _BorrowScreenState extends State<BorrowScreen> {
         );
       },
       onDismissed: (_) {
-        context.read<BorrowProvider>().deleteRecord(record.id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('借支记录已删除')),
-        );
+        try {
+          context.read<BorrowProvider>().deleteRecord(record.id);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('借支记录已删除')),
+          );
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('操作失败: $e')),
+            );
+          }
+        }
       },
-      child: RecordTile(
-        recordType: RecordType.borrow,
-        date: record.date,
-        amount: record.amount,
-        subtitle: subtitle,
+      child: GestureDetector(
+        onTap: () => _showEditBorrowDialog(context, record),
+        child: RecordTile(
+          recordType: RecordType.borrow,
+          date: record.date,
+          amount: record.amount,
+          subtitle: subtitle,
+        ),
       ),
     );
   }
@@ -214,25 +235,154 @@ class _BorrowScreenState extends State<BorrowScreen> {
                   child: const Text('取消'),
                 ),
                 FilledButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (formKey.currentState!.validate()) {
                       final amount =
                           double.tryParse(amountController.text.trim()) ?? 0;
                       Navigator.of(dialogContext).pop();
-                      context.read<BorrowProvider>().addRecord(
-                            BorrowRecord(
-                              projectId: widget.projectId,
-                              amount: amount,
-                              date: selectedDate,
-                              note: noteController.text.trim(),
-                            ),
+                      try {
+                        await context.read<BorrowProvider>().addRecord(
+                              BorrowRecord(
+                                projectId: widget.projectId,
+                                amount: amount,
+                                date: selectedDate,
+                                note: noteController.text.trim(),
+                              ),
+                            );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('借支成功')),
                           );
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('借支成功')),
-                      );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('操作失败: $e')),
+                          );
+                        }
+                      }
                     }
                   },
                   child: const Text('确认'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showEditBorrowDialog(BuildContext context, BorrowRecord record) {
+    final amountController = TextEditingController(text: record.amount.toStringAsFixed(record.amount == record.amount.roundToDouble() ? 0 : 2));
+    final noteController = TextEditingController(text: record.note);
+    final formKey = GlobalKey<FormState>();
+    var selectedDate = record.date;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              title: const Text('编辑借支'),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.calendar_today),
+                      title: Text(DateFormat('yyyy-MM-dd').format(selectedDate)),
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: dialogContext,
+                          initialDate: selectedDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2030),
+                        );
+                        if (picked != null) setDialogState(() => selectedDate = picked);
+                      },
+                    ),
+                    TextFormField(
+                      controller: amountController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: '金额', prefixText: '¥'),
+                      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return '请输入金额';
+                        if (double.tryParse(v) == null) return '无效金额';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: noteController,
+                      decoration: const InputDecoration(labelText: '备注（可选）'),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: dialogContext,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('确认删除'),
+                        content: const Text('确定删除这条借支记录吗？'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+                          FilledButton(style: FilledButton.styleFrom(backgroundColor: Colors.red), onPressed: () => Navigator.pop(ctx, true), child: const Text('删除')),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      try {
+                        await context.read<BorrowProvider>().deleteRecord(record.id);
+                        if (dialogContext.mounted) Navigator.pop(dialogContext);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('借支已删除')));
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('操作失败: $e')));
+                        }
+                      }
+                    }
+                  },
+                  child: Text('删除', style: TextStyle(color: Colors.red[700])),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('取消'),
+                ),
+                FilledButton(
+                  onPressed: () async {
+                    if (!formKey.currentState!.validate()) return;
+                    try {
+                      final updated = record.copyWith(
+                        amount: double.parse(amountController.text),
+                        date: selectedDate,
+                        note: noteController.text.trim(),
+                      );
+                      await context.read<BorrowProvider>().updateRecord(updated);
+                      if (dialogContext.mounted) Navigator.pop(dialogContext);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('借支已更新')),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('操作失败: $e')),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('保存'),
                 ),
               ],
             );
@@ -273,7 +423,7 @@ class _TotalBorrowedHeader extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                '¥${total.toStringAsFixed(2)}',
+                PrivacyService.format(total, hide: PrivacyService().isHidden.value),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,

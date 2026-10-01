@@ -589,7 +589,7 @@ class _AboutSection extends StatelessWidget {
         ListTile(
           leading: Icon(Icons.info_outline),
           title: Text('版本'),
-          subtitle: Text('v1.1.4'),
+          subtitle: Text('v1.1.5'),
         ),
         ListTile(
           leading: Icon(Icons.code),

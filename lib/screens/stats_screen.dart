@@ -245,7 +245,7 @@ class _StatsScreenState extends State<StatsScreen>
         final dayRecord = records.where((r) => r.date.day == day && r.date.month == _currentMonth.month && r.date.year == _currentMonth.year).firstOrNull;
         final overtimeHours = dayRecord?.overtimeHours ?? 0;
         final label = status == AttendanceStatus.overtime && overtimeHours > 0
-            ? '${overtimeHours.toStringAsFixed(overtimeHours == overtimeHours.roundToDouble() ? 0 : 1)}h'
+            ? '${overtimeHours.toStringAsFixed(overtimeHours == overtimeHours.roundToDouble() ? 0 : 1)}小时'
             : _statusLabel(status);
 
         return Container(
@@ -352,7 +352,7 @@ class _StatsScreenState extends State<StatsScreen>
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _summaryItem('出勤', '$workDays天', Colors.green),
-            _summaryItem('加班', '${totalOvertimeHours.toStringAsFixed(totalOvertimeHours == totalOvertimeHours.roundToDouble() ? 0 : 1)}h', Colors.blue),
+            _summaryItem('加班', '${totalOvertimeHours.toStringAsFixed(totalOvertimeHours == totalOvertimeHours.roundToDouble() ? 0 : 1)}小时', Colors.blue),
             _summaryItem('休息', '$restDays天', Colors.grey),
             _summaryItem('总工天', '$totalDays天',
                 Theme.of(context).colorScheme.primary),
@@ -466,7 +466,7 @@ class _StatsScreenState extends State<StatsScreen>
                 child: StatCard(
                   icon: Icons.access_time,
                   label: '加班时长',
-                  value: '${monthlyStats.overtimeHours.toStringAsFixed(1)}h',
+                  value: '${monthlyStats.overtimeHours.toStringAsFixed(1)}小时',
                   color: Colors.blue,
                 ),
               ),

@@ -341,7 +341,7 @@ class _ProjectCard extends StatelessWidget {
                       const SizedBox(width: 16),
                       _StatChip(
                         icon: Icons.access_time,
-                        label: '加班 ${totalOvertime.toStringAsFixed(1)}h',
+                        label: '加班 ${totalOvertime.toStringAsFixed(1)}小时',
                         color: Colors.orange,
                       ),
                       const SizedBox(width: 16),

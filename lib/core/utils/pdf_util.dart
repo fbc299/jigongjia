@@ -357,7 +357,7 @@ class PdfUtil {
             } else if (r.type == WorkType.point) {
               workInfo = '${r.days}天';
               if (r.overtimeHours > 0) {
-                workInfo += ' +${r.overtimeHours}h加班';
+                workInfo += ' +${r.overtimeHours}小时加班';
               }
             } else if (r.type == WorkType.packageDay) {
               workInfo = '${r.packageDays}天';

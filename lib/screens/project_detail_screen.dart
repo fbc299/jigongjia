@@ -366,7 +366,7 @@ class _DiaryCard extends StatelessWidget {
       iconColor = Colors.orange;
     } else if (record.type == WorkType.point) {
       mainText = '${record.days}天';
-      if (record.overtimeHours > 0) mainText += ' + 加班${record.overtimeHours.toStringAsFixed(record.overtimeHours == record.overtimeHours.roundToDouble() ? 0 : 1)}h';
+      if (record.overtimeHours > 0) mainText += ' + 加班${record.overtimeHours.toStringAsFixed(record.overtimeHours == record.overtimeHours.roundToDouble() ? 0 : 1)}小时';
       icon = Icons.engineering;
       iconColor = theme.colorScheme.primary;
     } else if (record.type == WorkType.packageDay) {

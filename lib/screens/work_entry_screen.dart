@@ -8,6 +8,7 @@ import 'package:jigongjia/models/work_record.dart';
 import 'package:jigongjia/core/utils/privacy_service.dart';
 import 'package:jigongjia/providers/work_provider.dart';
 import 'package:jigongjia/providers/project_provider.dart';
+import 'package:jigongjia/providers/stats_provider.dart';
 import 'package:jigongjia/screens/widgets/work_type_selector.dart';
 import 'package:jigongjia/screens/widgets/time_input_panel.dart';
 import 'package:jigongjia/screens/widgets/summary_panel.dart';
@@ -75,6 +76,12 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
             children: [
               // Month navigation
               _buildMonthNav(theme),
+              // 当月统计面板
+              _MonthlyStatsPanel(
+                projectId: widget.projectId,
+                year: _currentMonth.year,
+                month: _currentMonth.month,
+              ),
               const SizedBox(height: 8),
               // Weekday headers
               _buildWeekdayHeaders(theme),
@@ -309,7 +316,7 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
     String label;
     if (record.type == WorkType.point) {
       color = theme.colorScheme.primary;
-      label = record.days == 0.5 ? '半' : (record.overtimeHours > 0 ? '${record.overtimeHours.toStringAsFixed(record.overtimeHours == record.overtimeHours.roundToDouble() ? 0 : 1)}h' : '');
+      label = record.days == 0.5 ? '半' : (record.overtimeHours > 0 ? '${record.overtimeHours.toStringAsFixed(record.overtimeHours == record.overtimeHours.roundToDouble() ? 0 : 1)}小时' : '');
     } else if (record.type == WorkType.packageDay) {
       color = Colors.teal;
       label = '包';
@@ -397,7 +404,7 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
       color = Colors.orange;
     } else if (record.type == WorkType.point) {
       desc = '${record.days}天';
-      if (record.overtimeHours > 0) desc += ' + 加班${record.overtimeHours.toStringAsFixed(record.overtimeHours == record.overtimeHours.roundToDouble() ? 0 : 1)}h';
+      if (record.overtimeHours > 0) desc += ' + 加班${record.overtimeHours.toStringAsFixed(record.overtimeHours == record.overtimeHours.roundToDouble() ? 0 : 1)}小时';
       desc += ' · ${PrivacyService.format(record.dailyRate, hide: PrivacyService().isHidden.value)}/天';
       icon = Icons.engineering;
       color = theme.colorScheme.primary;
@@ -735,5 +742,97 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
     if (v == 0) return '';
     if (v == v.roundToDouble()) return v.toInt().toString();
     return v.toString();
+  }
+}
+
+/// 记工页顶部当月统计面板：出勤 / 加班 / 收入 / 未结工资
+class _MonthlyStatsPanel extends StatelessWidget {
+  final String projectId;
+  final int year;
+  final int month;
+
+  const _MonthlyStatsPanel({
+    required this.projectId,
+    required this.year,
+    required this.month,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<StatsProvider>(
+      builder: (context, stats, _) {
+        final s = stats.getMonthlyStats(projectId, year, month);
+        final monthLabel = '$month月';
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.withOpacity(0.08)),
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.bar_chart, size: 14, color: Colors.grey),
+                  const SizedBox(width: 6),
+                  Text('$monthLabel 统计',
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _StatCell(
+                      label: '出勤',
+                      value: '${s.workDays}天',
+                      color: Colors.green),
+                  _StatCell(
+                      label: '加班',
+                      value: '${s.overtimeHours.toStringAsFixed(s.overtimeHours == s.overtimeHours.roundToDouble() ? 0 : 1)}小时',
+                      color: Colors.blue),
+                  _StatCell(
+                      label: '收入',
+                      value: PrivacyService.format(s.totalIncome, hide: PrivacyService().isHidden.value),
+                      color: Colors.green.shade700),
+                  _StatCell(
+                      label: '未结',
+                      value: PrivacyService.format(s.unpaidAmount, hide: PrivacyService().isHidden.value),
+                      color: s.unpaidAmount > 0 ? Colors.red.shade700 : Colors.grey.shade600),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _StatCell extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _StatCell({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(value,
+              style: TextStyle(
+                  fontSize: 15, fontWeight: FontWeight.bold, color: color)),
+          const SizedBox(height: 2),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 11, color: Colors.grey[500])),
+        ],
+      ),
+    );
   }
 }

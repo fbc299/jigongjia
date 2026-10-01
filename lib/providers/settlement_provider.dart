@@ -73,4 +73,10 @@ class SettlementProvider extends ChangeNotifier {
   List<Settlement> getSettlementsByProject(String projectId) {
     return _settlements.where((s) => s.projectId == projectId).toList();
   }
+
+  /// 移除某个项目的所有记录（配合项目删除，清理内存缓存）
+  void removeByProject(String projectId) {
+    _settlements.removeWhere((s) => s.projectId == projectId);
+    notifyListeners();
+  }
 }

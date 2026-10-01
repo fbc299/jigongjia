@@ -119,7 +119,17 @@ class _OverviewSection extends StatelessWidget {
         final workRecords = workProv.getRecordsByProject(projectId);
         final totalDays = workRecords.fold<double>(
           0,
-          (sum, r) => sum + r.days + r.packageDays,
+          (sum, r) {
+            if (r.isRest) return sum;
+            switch (r.type) {
+              case WorkType.point:
+                return sum + r.days;
+              case WorkType.packageDay:
+                return sum + r.packageDays;
+              case WorkType.packageQty:
+                return sum + (r.quantity > 0 ? 1.0 : 0.0);
+            }
+          },
         );
         final totalWage = workRecords.fold<double>(
           0,
@@ -356,7 +366,7 @@ class _DiaryCard extends StatelessWidget {
       iconColor = Colors.orange;
     } else if (record.type == WorkType.point) {
       mainText = '${record.days}天';
-      if (record.overtimeHours > 0) mainText += ' + 加班${record.overtimeHours.toInt()}h';
+      if (record.overtimeHours > 0) mainText += ' + 加班${record.overtimeHours.toStringAsFixed(record.overtimeHours == record.overtimeHours.roundToDouble() ? 0 : 1)}h';
       icon = Icons.engineering;
       iconColor = theme.colorScheme.primary;
     } else if (record.type == WorkType.packageDay) {

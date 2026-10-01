@@ -1,0 +1,441 @@
+{
+  "audit_report": {
+    "project": "格格记工 (jigongjia)",
+    "location": "/vol1/fbc299/jigongjia/",
+    "tech_stack": "Flutter 3.8.1 + Provider 6.1.0 + sqflite 2.3.0",
+    "audit_date": "2026-09-10",
+    "total_files": 44,
+    "total_lines": 9104,
+    "summary": {
+      "total_issues": 42,
+      "critical": 6,
+      "major": 14,
+      "minor": 22
+    },
+    "categories": {
+      "security": {
+        "label": "安全性",
+        "issues": [
+          {
+            "id": "SEC-001",
+            "severity": "critical",
+            "file": "lib/core/utils/network_backup.dart",
+            "line": 18,
+            "title": "备份Token硬编码在源码中",
+            "description": "默认备份服务器Token直接硬编码在源码中: `_defaultToken = 'BNyIn22qyZbHP5S9HqF4PoaLjToKgR2KlwE5bUISuME'`。如果代码仓库泄露，备份服务器将被暴露。",
+            "suggestion": "Token应存储在环境变量或安全存储中。首次使用时引导用户输入，而非提供默认值。如必须有默认值，至少不要写在代码里。"
+          },
+          {
+            "id": "SEC-002",
+            "severity": "major",
+            "file": "lib/core/utils/network_backup.dart",
+            "line": 163,
+            "title": "备份下载接口存在路径注入风险",
+            "description": "下载备份时name参数直接拼接URL: `Uri.parse('$_serverUrl/api/backup/$name')`。如果备份名包含`../`等特殊字符，可能造成路径遍历攻击。",
+            "suggestion": "对name参数进行URL编码，或使用Uri.replace方法构建安全的URL。"
+          },
+          {
+            "id": "SEC-003",
+            "severity": "minor",
+            "file": "lib/core/utils/network_backup.dart",
+            "line": 436,
+            "title": "Token在设置对话框中明文预填",
+            "description": "设置备份服务器时，Token直接填入TextEditingController: `TextEditingController(text: _service.token)`。如果设备被截屏或旁人窥视，Token会暴露。",
+            "suggestion": "设置输入框已设置obscureText: true，这是正确的。但建议在显示设置时不清空Token值，改用'••••••'占位，需要时再显示。"
+          },
+          {
+            "id": "SEC-004",
+            "severity": "minor",
+            "file": "lib/screens/settings_screen.dart",
+            "line": 88,
+            "title": "导入备份缺乏数据校验",
+            "description": "从JSON文件导入数据时，仅检查version >= 1，未校验数据结构完整性和字段类型。恶意构造的JSON可能导致应用崩溃或数据损坏。",
+            "suggestion": "添加严格的JSON schema验证，检查必需字段存在且类型正确。"
+          }
+        ]
+      },
+      "data_integrity": {
+        "label": "数据完整性",
+        "issues": [
+          {
+            "id": "DATA-001",
+            "severity": "critical",
+            "file": "lib/screens/settings_screen.dart",
+            "line": 65,
+            "title": "导入备份非原子操作，中途失败会导致数据丢失",
+            "description": "_importFromBackupJson先逐条删除所有现有数据，再逐条插入新数据。如果在删除过程中或插入过程中发生异常（如存储空间不足），将导致数据永久丢失。",
+            "suggestion": "1) 先将现有数据备份到临时文件；2) 使用数据库事务(db.transaction)包裹整个导入过程；3) 失败时回滚到原始数据。"
+          },
+          {
+            "id": "DATA-002",
+            "severity": "major",
+            "file": "lib/core/database/database_helper.dart",
+            "line": 40,
+            "title": "缺少数据库迁移策略(onUpgrade)",
+            "description": "数据库只有onCreate回调，没有onUpgrade。当未来添加新表或新字段时（dbVersion > 1），老用户的数据库将无法升级，应用会崩溃。",
+            "suggestion": "添加onUpgrade回调，使用switch/case处理不同版本间的增量迁移。"
+          },
+          {
+            "id": "DATA-003",
+            "severity": "major",
+            "file": "lib/models/work_record.dart",
+            "line": 25,
+            "title": "totalWage存储值与计算值可能不一致",
+            "description": "totalWage既存储在数据库中，又可通过calcTotalWage()计算。但保存记录时使用_wage(来自UI计算)，而fromMap读取数据库值。如果数据被手动修改或导入，两者可能不一致。",
+            "suggestion": "保存时始终使用calcTotalWage()重新计算，或在fromMap后校验一致性。建议去掉存储字段，改为getter方法。"
+          },
+          {
+            "id": "DATA-004",
+            "severity": "minor",
+            "file": "lib/providers/work_provider.dart",
+            "line": 47,
+            "title": "使用ConflictAlgorithm.replace可能静默覆盖数据",
+            "description": "所有Provider的add方法使用`ConflictAlgorithm.replace`。如果意外传入已存在的ID（如复制记录），会静默覆盖旧数据而非报错。",
+            "suggestion": "对于新增操作使用`ConflictAlgorithm.abort`或先检查ID是否已存在。"
+          }
+        ]
+      },
+      "performance": {
+        "label": "性能",
+        "issues": [
+          {
+            "id": "PERF-001",
+            "severity": "major",
+            "file": "lib/providers/work_provider.dart",
+            "line": 26,
+            "title": "全量加载所有记录到内存，无分页机制",
+            "description": "每次loadRecords()从数据库加载所有记录到内存列表。随着使用时间增长（几年的记工数据），内存占用和加载时间会线性增长。",
+            "suggestion": "1) 实现分页加载（如每次加载一个月的数据）；2) 使用数据库层面的过滤而非内存过滤；3) 对于getRecordsByProject等方法，改为数据库查询而非内存filter。"
+          },
+          {
+            "id": "PERF-002",
+            "severity": "major",
+            "file": "lib/screens/home_screen.dart",
+            "line": 27,
+            "title": "每次打开HomeScreen都重新加载全部数据",
+            "description": "initState中调用了loadProjects、loadRecords、loadRecords、loadSettlements、loadExpenses、loadNotes共6次数据库查询。每次切换到项目Tab都会触发。",
+            "suggestion": "1) 添加加载状态标记，避免重复加载；2) 实现增量刷新机制；3) 或在AppShell级别统一加载一次。"
+          },
+          {
+            "id": "PERF-003",
+            "severity": "major",
+            "file": "lib/screens/stats_screen.dart",
+            "line": 245,
+            "title": "日历网格中每天遍历所有记录查找当天数据",
+            "description": "在_buildCalendarGrid中，每天的cell都执行`records.where((r) => r.date.day == day && ...)`。一个月31天就是31次全量遍历。",
+            "suggestion": "在构建Grid之前先建立`Map<int, WorkRecord>`（按天索引），然后直接查找。"
+          },
+          {
+            "id": "PERF-004",
+            "severity": "minor",
+            "file": "lib/screens/borrow_screen.dart",
+            "line": 53,
+            "title": "每次build都重新排序列表",
+            "description": "`records.sort((a, b) => b.date.compareTo(a.date))`在Consumer的builder中执行。每次notifyListeners触发都会重新排序。",
+            "suggestion": "在Provider层面维护排序后的列表，或使用计算属性缓存。"
+          },
+          {
+            "id": "PERF-005",
+            "severity": "minor",
+            "file": "lib/core/utils/watermark_util.dart",
+            "line": 21,
+            "title": "水印处理将整个图片读入内存",
+            "description": "`final bytes = await file.readAsBytes()`将整张照片读入内存。高分辨率照片（1920x1920 JPEG约2-5MB）在低端设备上可能造成内存压力。",
+            "suggestion": "考虑使用isolate处理图片，或在pickImage时进一步限制分辨率。"
+          },
+          {
+            "id": "PERF-006",
+            "severity": "minor",
+            "file": "lib/screens/home_screen.dart",
+            "line": 247,
+            "title": "Consumer3导致不必要的重建",
+            "description": "_ProjectCard使用Consumer3监听WorkProvider、BorrowProvider和SettlementProvider。任何一个Provider变化都会重建所有项目卡片。",
+            "suggestion": "使用Selector替代Consumer，仅监听特定项目的统计数据。或在Provider层面提供per-project的统计缓存。"
+          }
+        ]
+      },
+      "architecture": {
+        "label": "架构设计",
+        "issues": [
+          {
+            "id": "ARCH-001",
+            "severity": "major",
+            "file": "lib/providers/",
+            "line": null,
+            "title": "Provider直接访问数据库，缺乏Repository层",
+            "description": "所有Provider直接调用DatabaseHelper.instance.database进行CRUD操作。这导致：1) 业务逻辑与数据访问耦合；2) 难以替换存储实现；3) 难以进行单元测试（需要真实数据库）。",
+            "suggestion": "引入Repository层封装数据访问，Provider只依赖Repository接口。这样可以mock Repository进行测试。"
+          },
+          {
+            "id": "ARCH-002",
+            "severity": "major",
+            "file": "lib/core/utils/privacy_service.dart",
+            "line": null,
+            "title": "隐私服务使用ValueNotifier，与Provider体系不统一",
+            "description": "PrivacyService使用单例+ValueNotifier模式，而其他状态使用ChangeNotifier+Provider。导致每个显示金额的页面都需要手动使用ValueListenableBuilder监听。",
+            "suggestion": "将PrivacyService改为ChangeNotifier，通过Provider统一管理。或至少提供一个统一的扩展方法简化使用。"
+          },
+          {
+            "id": "ARCH-003",
+            "severity": "minor",
+            "file": "lib/app.dart",
+            "line": 106,
+            "title": "在build方法中设置状态",
+            "description": "`if (_selectedProjectId == null && projects.isNotEmpty) { _selectedProjectId = projects.first.id; }`在build()中赋值，这是反模式，可能导致意外的重建循环。",
+            "suggestion": "将项目选择逻辑移到initState或addPostFrameCallback中。"
+          },
+          {
+            "id": "ARCH-004",
+            "severity": "minor",
+            "file": "lib/main.dart",
+            "line": 37,
+            "title": "darkTheme已定义但未使用",
+            "description": "AppTheme.darkTheme已在app_theme.dart中完整定义，但main.dart只使用了lightTheme。暗色模式支持被浪费了。",
+            "suggestion": "在MaterialApp中添加`darkTheme: AppTheme.darkTheme`和`themeMode: ThemeMode.system`即可启用系统级暗色模式。"
+          }
+        ]
+      },
+      "error_handling": {
+        "label": "错误处理",
+        "issues": [
+          {
+            "id": "ERR-001",
+            "severity": "critical",
+            "file": "lib/app.dart",
+            "line": 98,
+            "title": "备份过程中的错误被静默吞掉",
+            "description": "`catch (_) {}`完全忽略了_promptBackup中的所有异常。如果备份服务器不可达、网络超时、数据序列化失败，用户完全不知道发生了什么。",
+            "suggestion": "至少记录到debug日志。如果需要静默处理，至少区分可接受的错误（如网络不可用）和需要关注的错误（如数据序列化失败）。"
+          },
+          {
+            "id": "ERR-002",
+            "severity": "major",
+            "file": "lib/providers/*.dart",
+            "line": null,
+            "title": "错误信息直接暴露给用户",
+            "description": "多处使用`SnackBar(content: Text('操作失败: $e'))`直接显示异常信息。原始异常可能包含技术细节（如SQL错误、文件路径），对用户无意义且可能泄露敏感信息。",
+            "suggestion": "1) 对用户显示友好的错误消息；2) 仅在debug模式下显示原始异常；3) 考虑使用error code映射到用户可理解的提示。"
+          },
+          {
+            "id": "ERR-003",
+            "severity": "major",
+            "file": "lib/providers/*.dart",
+            "line": null,
+            "title": "大量使用print()而非debugPrint()或日志框架",
+            "description": "整个项目中使用了大量`print('加载失败: $e')`。print在release模式下仍会输出到系统日志，可能泄露敏感数据（数据库路径、表结构、用户数据摘要）。",
+            "suggestion": "1) 将所有print替换为debugPrint()（release模式下不输出）；2) 或使用logging包并设置适当的日志级别。"
+          },
+          {
+            "id": "ERR-004",
+            "severity": "minor",
+            "file": "lib/screens/work_entry_screen.dart",
+            "line": 710,
+            "title": "删除操作未等待异步完成",
+            "description": "`context.read<WorkProvider>().deleteRecord(widget.existingRecord!.id)`没有await。如果删除失败，用户已经看到了成功反馈。",
+            "suggestion": "添加await并处理可能的异常。"
+          }
+        ]
+      },
+      "code_quality": {
+        "label": "代码质量",
+        "issues": [
+          {
+            "id": "CODE-001",
+            "severity": "major",
+            "file": "lib/screens/",
+            "line": null,
+            "title": "隐私切换按钮在5+个页面重复实现",
+            "description": "AppBar中的隐私模式切换按钮（ValueListenableBuilder + PrivacyService().isHidden + toggle）在work_entry_screen、stats_screen、borrow_screen、settlement_screen、project_detail_screen中完全相同的实现。",
+            "suggestion": "提取为共享的AppBar action widget: `PrivacyToggleAction()`。"
+          },
+          {
+            "id": "CODE-002",
+            "severity": "major",
+            "file": "lib/providers/",
+            "line": null,
+            "title": "所有Provider都有完全相同的Selector helper样板代码",
+            "description": "每个Provider（共8个）都有一个完全相同的`static Widget select<T>(...)`方法，约10行代码，完全重复。",
+            "suggestion": "创建一个通用的`ProviderHelper`或使用代码生成/扩展方法消除重复。"
+          },
+          {
+            "id": "CODE-003",
+            "severity": "minor",
+            "file": "lib/screens/work_entry_screen.dart",
+            "line": 566,
+            "title": "方法名_p()含义不明",
+            "description": "`double _p(String s) => double.tryParse(s.trim()) ?? 0;`方法名过于简短，无法从名称理解其用途（解析字符串为double）。",
+            "suggestion": "重命名为`_parseDouble`或`_toDouble`。"
+          },
+          {
+            "id": "CODE-004",
+            "severity": "minor",
+            "file": "lib/screens/work_entry_screen.dart",
+            "line": 69,
+            "title": "日历键使用字符串拼接而非结构化对象",
+            "description": "`final key = '${r.date.year}-${r.date.month}-${r.date.day}';`在多个地方重复出现。字符串拼接容易出错且不易搜索。",
+            "suggestion": "创建`DateKey`工具类或使用`DateTime(r.date.year, r.date.month, r.date.day)`作为Map键（利用DateTime的相等性）。"
+          },
+          {
+            "id": "CODE-005",
+            "severity": "minor",
+            "file": "lib/core/utils/pdf_util.dart",
+            "line": 1,
+            "title": "PDF工具类方法过长（380行单文件）",
+            "description": "generateAttendancePdf方法包含了日历构建、图例、汇总、明细表等多个子方法。虽然有拆分，但都作为static方法在同一类中。",
+            "suggestion": "将日历构建、表格构建等拆分为独立的builder类或扩展方法。"
+          },
+          {
+            "id": "CODE-006",
+            "severity": "minor",
+            "file": "lib/screens/home_screen.dart",
+            "line": 104,
+            "title": "创建项目的Dialog代码重复",
+            "description": "_showAddProjectDialog中onFieldSubmitted和onPressed的提交逻辑完全相同（约15行），违反DRY原则。",
+            "suggestion": "提取提交逻辑为独立方法`_submitProject()`。"
+          }
+        ]
+      },
+      "testing": {
+        "label": "测试覆盖",
+        "issues": [
+          {
+            "id": "TEST-001",
+            "severity": "critical",
+            "file": "test/",
+            "line": null,
+            "title": "测试覆盖率极低（3个测试文件/44个源文件 = 6.8%）",
+            "description": "仅有3个测试文件：project_provider_test.dart（仅测试初始状态和模型）、work_provider_test.dart、database_helper_test.dart。没有任何Screen/Widget测试、集成测试、或端到端测试。",
+            "suggestion": "优先级排序：1) 为所有Provider添加带mock数据库的单元测试；2) 为核心Screen添加Widget测试；3) 添加关键流程的集成测试。"
+          },
+          {
+            "id": "TEST-002",
+            "severity": "major",
+            "file": "test/providers/project_provider_test.dart",
+            "line": null,
+            "title": "现有测试仅覆盖初始状态，未测试实际操作",
+            "description": "project_provider_test只测试了'初始为空'和'返回null'。未测试addProject、updateProject、deleteProject、archiveProject等核心业务逻辑。",
+            "suggestion": "使用mock数据库（如sqflite_common_ffi）测试所有CRUD操作及其边界情况。"
+          }
+        ]
+      },
+      "dependencies": {
+        "label": "依赖管理",
+        "issues": [
+          {
+            "id": "DEP-001",
+            "severity": "minor",
+            "file": "pubspec.yaml",
+            "line": 35,
+            "title": "使用已弃用的flutter_lints包",
+            "description": "`flutter_lints: ^5.0.0`已被官方弃用，应迁移到`lints`包。",
+            "suggestion": "将`flutter_lints`替换为`lints: ^4.0.0`并更新analysis_options.yaml。"
+          },
+          {
+            "id": "DEP-002",
+            "severity": "minor",
+            "file": "pubspec.yaml",
+            "line": 26,
+            "title": "image包仅用于水印文字绘制",
+            "description": "引入了整个`image: ^4.5.4`包（约2MB）仅用于在照片上绘制文字水印。这是一个重量级依赖。",
+            "suggestion": "评估是否可以用更轻量的方案替代，如Canvas绘制或platform channel调用原生API。"
+          }
+        ]
+      },
+      "ui_ux": {
+        "label": "UI/UX",
+        "issues": [
+          {
+            "id": "UI-001",
+            "severity": "minor",
+            "file": "lib/screens/borrow_screen.dart",
+            "line": 303,
+            "title": "编辑借支的日期选择器lastDate硬编码为2030年",
+            "description": "`lastDate: DateTime(2030)`在编辑借支对话框中硬编码。而其他地方（如新增借支）使用DateTime(2100)。不一致且2030年将很快到来。",
+            "suggestion": "统一使用DateTime(2100)或`DateTime.now().add(Duration(days: 365*10))`。"
+          },
+          {
+            "id": "UI-002",
+            "severity": "minor",
+            "file": "lib/screens/expense_screen.dart",
+            "line": 264,
+            "title": "添加开支后可能重复弹出成功消息",
+            "description": "_showAddExpenseDialog中，如果amount验证失败（line 352-356），会在Dialog关闭后显示SnackBar并return，但此时Dialog已经被pop了（line 339），可能导致用户看到错误的交互流程。",
+            "suggestion": "将验证逻辑移到Dialog关闭之前。"
+          },
+          {
+            "id": "UI-003",
+            "severity": "minor",
+            "file": "lib/screens/work_entry_screen.dart",
+            "line": 50,
+            "title": "硬编码背景颜色",
+            "description": "`backgroundColor: const Color(0xFFF8F6F2)`硬编码在多处。不跟随系统暗色模式，且如果主题色改变需要手动更新多处。",
+            "suggestion": "使用Theme.of(context).colorScheme.surfaceContainerLowest等主题色。"
+          }
+        ]
+      }
+    },
+    "priority_fix_order": [
+      {
+        "rank": 1,
+        "id": "DATA-001",
+        "reason": "数据丢失风险：导入备份失败可能导致所有数据丢失"
+      },
+      {
+        "rank": 2,
+        "id": "SEC-001",
+        "reason": "安全风险：硬编码Token可被逆向工程提取"
+      },
+      {
+        "rank": 3,
+        "id": "DATA-002",
+        "reason": "未来兼容性：缺少数据库迁移将导致版本升级时崩溃"
+      },
+      {
+        "rank": 4,
+        "id": "ERR-001",
+        "reason": "可观测性：备份失败完全无感知"
+      },
+      {
+        "rank": 5,
+        "id": "TEST-001",
+        "reason": "质量保障：测试覆盖率极低，重构风险高"
+      },
+      {
+        "rank": 6,
+        "id": "PERF-001",
+        "reason": "长期性能：数据量增长后会明显变慢"
+      },
+      {
+        "rank": 7,
+        "id": "PERF-002",
+        "reason": "用户体验：每次切换Tab都触发6次数据库查询"
+      },
+      {
+        "rank": 8,
+        "id": "ARCH-001",
+        "reason": "可维护性：Provider直接访问数据库难以测试和重构"
+      },
+      {
+        "rank": 9,
+        "id": "ERR-002",
+        "reason": "用户体验：技术错误信息暴露给用户"
+      },
+      {
+        "rank": 10,
+        "id": "CODE-001",
+        "reason": "可维护性：大量重复代码增加维护成本"
+      }
+    ],
+    "strengths": [
+      "使用WAL模式和外键约束，数据库设计基本合理",
+      "有完整的数据库索引（7个索引覆盖常用查询）",
+      "使用uuid生成主键，避免冲突",
+      "所有模型都有copyWith、toMap/fromMap、==运算符重载",
+      "Provider体系清晰，每个模块有独立的Provider",
+      "有隐私模式功能（隐藏金额显示）",
+      "备份支持重试和进度回调",
+      "使用Material 3设计系统",
+      "模型层设计良好，有toString和相等性比较"
+    ]
+  }
+}

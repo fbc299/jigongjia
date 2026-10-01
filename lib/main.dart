@@ -17,11 +17,19 @@ void main() {
   final workProvider = WorkProvider();
   final borrowProvider = BorrowProvider();
   final settlementProvider = SettlementProvider();
+  final photoProvider = PhotoEvidenceProvider();
+  final projectProvider = ProjectProvider()
+    ..attach(
+      work: workProvider,
+      borrow: borrowProvider,
+      settlement: settlementProvider,
+      photo: photoProvider,
+    );
 
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ProjectProvider()),
+        ChangeNotifierProvider.value(value: projectProvider),
         ChangeNotifierProvider.value(value: workProvider),
         ChangeNotifierProvider.value(value: borrowProvider),
         ChangeNotifierProvider.value(value: settlementProvider),
@@ -31,7 +39,7 @@ void main() {
         ),
         ChangeNotifierProvider(create: (_) => ExpenseProvider()),
         ChangeNotifierProvider(create: (_) => NoteProvider()),
-        ChangeNotifierProvider(create: (_) => PhotoEvidenceProvider()),
+        ChangeNotifierProvider.value(value: photoProvider),
       ],
       child: MaterialApp(
         title: '格格记工',

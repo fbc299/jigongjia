@@ -94,4 +94,10 @@ class NoteProvider extends ChangeNotifier {
   List<Note> getNotesByProject(String projectId) {
     return _notes.where((n) => n.projectId == projectId).toList();
   }
+
+  /// 移除某个项目的所有记录（配合项目删除，清理内存缓存）
+  void removeByProject(String projectId) {
+    _notes.removeWhere((n) => n.projectId == projectId);
+    notifyListeners();
+  }
 }

@@ -94,6 +94,12 @@ class WorkProvider extends ChangeNotifier {
     return _records.where((r) => r.projectId == projectId).toList();
   }
 
+  /// 移除某个项目的所有记录（配合项目删除，清理内存缓存；DB 端由外键级联）
+  void removeByProject(String projectId) {
+    _records.removeWhere((r) => r.projectId == projectId);
+    notifyListeners();
+  }
+
   List<WorkRecord> getRecordsByMonth(String projectId, int year, int month) {
     return _records.where((r) {
       return r.projectId == projectId &&

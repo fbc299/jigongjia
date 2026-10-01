@@ -10,6 +10,7 @@ import 'package:jigongjia/providers/settlement_provider.dart';
 import 'package:jigongjia/providers/expense_provider.dart';
 import 'package:jigongjia/providers/note_provider.dart';
 import 'package:jigongjia/models/project.dart';
+import 'package:jigongjia/models/work_record.dart';
 import 'package:jigongjia/screens/project_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -249,7 +250,17 @@ class _ProjectCard extends StatelessWidget {
         final workRecords = workProv.getRecordsByProject(project.id);
         final totalDays = workRecords.fold<double>(
           0,
-          (sum, r) => sum + r.days + r.packageDays,
+          (sum, r) {
+            if (r.isRest) return sum;
+            switch (r.type) {
+              case WorkType.point:
+                return sum + r.days;
+              case WorkType.packageDay:
+                return sum + r.packageDays;
+              case WorkType.packageQty:
+                return sum + (r.quantity > 0 ? 1.0 : 0.0);
+            }
+          },
         );
         final totalOvertime = workRecords.fold<double>(
           0,

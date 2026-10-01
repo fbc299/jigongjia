@@ -15,7 +15,9 @@ class NetworkBackupService {
   static const _prefUrl = 'backup_server_url';
   static const _prefToken = 'backup_server_token';
   static const _defaultUrl = 'https://fbc299.xyz:10443';
-  static const _defaultToken = 'BNyIn22qyZbHP5S9HqF4PoaLjToKgR2KlwE5bUISuME';
+  // Token 不再硬编码进 APK（H5）：默认空，用户在「设置→备份服务器」填入。
+  // 留空时服务端按匿名模式处理，仅做备份文件读写。
+  static const _defaultToken = '';
 
   String _serverUrl = _defaultUrl;
   String _token = _defaultToken;
@@ -54,10 +56,13 @@ class NetworkBackupService {
   String get serverUrl => _serverUrl;
   String get token => _token;
 
-  Map<String, String> get _headers => {
-        'Authorization': 'Bearer $_token',
-        'Content-Type': 'application/json',
-      };
+  Map<String, String> get _headers {
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    if (_token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $_token';
+    }
+    return headers;
+  }
 
   /// Retry an async action with exponential backoff.
   /// Delays: 1s, 2s, 4s (2^0, 2^1, 2^2) by default.

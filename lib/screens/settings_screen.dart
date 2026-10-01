@@ -13,12 +13,14 @@ import '../providers/borrow_provider.dart';
 import '../providers/settlement_provider.dart';
 import '../providers/expense_provider.dart';
 import '../providers/note_provider.dart';
+import '../providers/photo_evidence_provider.dart';
 import '../models/project.dart';
 import '../models/work_record.dart';
 import '../models/borrow_record.dart';
 import '../models/settlement.dart';
 import '../models/expense.dart';
 import '../models/note.dart';
+import '../models/photo_evidence.dart';
 import '../core/utils/network_backup.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -71,6 +73,7 @@ Future<void> _importFromBackupJson(BuildContext context, String jsonStr) async {
   final settle = ctx.read<SettlementProvider>();
   final expense = ctx.read<ExpenseProvider>();
   final note = ctx.read<NoteProvider>();
+  final photo = ctx.read<PhotoEvidenceProvider>();
 
   for (final p in List.from(proj.projects)) await proj.deleteProject(p.id);
   for (final r in List.from(work.records)) await work.deleteRecord(r.id);
@@ -78,6 +81,7 @@ Future<void> _importFromBackupJson(BuildContext context, String jsonStr) async {
   for (final s in List.from(settle.settlements)) await settle.deleteSettlement(s.id);
   for (final e in List.from(expense.expenses)) await expense.deleteExpense(e.id);
   for (final n in List.from(note.notes)) await note.deleteNote(n.id);
+  for (final p in List.from(photo.photos)) await photo.deletePhoto(p.id);
 
   for (final m in (backup['projects'] as List? ?? [])) await proj.addProject(Project.fromMap(m));
   for (final m in (backup['workRecords'] as List? ?? [])) await work.addRecord(WorkRecord.fromMap(m));
@@ -85,6 +89,10 @@ Future<void> _importFromBackupJson(BuildContext context, String jsonStr) async {
   for (final m in (backup['settlements'] as List? ?? [])) await settle.addSettlement(Settlement.fromMap(m));
   for (final m in (backup['expenses'] as List? ?? [])) await expense.addExpense(Expense.fromMap(m));
   for (final m in (backup['notes'] as List? ?? [])) await note.addNote(Note.fromMap(m));
+  for (final m in (backup['photoEvidence'] as List? ?? [])) {
+    final p = PhotoEvidence.fromMap(m);
+    if (await File(p.filePath).exists()) await photo.addPhoto(p);
+  }
 }
 
 // ===================== Project Management =====================
@@ -222,6 +230,7 @@ class _DataManagementSection extends StatelessWidget {
       final settlementProvider = context.read<SettlementProvider>();
       final expenseProvider = context.read<ExpenseProvider>();
       final noteProvider = context.read<NoteProvider>();
+      final photoProvider = context.read<PhotoEvidenceProvider>();
 
       final backup = {
         'version': 1,
@@ -232,6 +241,7 @@ class _DataManagementSection extends StatelessWidget {
         'settlements': settlementProvider.settlements.map((s) => s.toMap()).toList(),
         'expenses': expenseProvider.expenses.map((e) => e.toMap()).toList(),
         'notes': noteProvider.notes.map((n) => n.toMap()).toList(),
+        'photoEvidence': photoProvider.photos.map((p) => p.toMap()).toList(),
       };
 
       final jsonStr = const JsonEncoder.withIndent('  ').convert(backup);
@@ -550,6 +560,7 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
       'settlements': ctx.read<SettlementProvider>().settlements.map((s) => s.toMap()).toList(),
       'expenses': ctx.read<ExpenseProvider>().expenses.map((e) => e.toMap()).toList(),
       'notes': ctx.read<NoteProvider>().notes.map((n) => n.toMap()).toList(),
+      'photoEvidence': ctx.read<PhotoEvidenceProvider>().photos.map((p) => p.toMap()).toList(),
     });
   }
 
@@ -578,7 +589,7 @@ class _AboutSection extends StatelessWidget {
         ListTile(
           leading: Icon(Icons.info_outline),
           title: Text('版本'),
-          subtitle: Text('v1.1.0'),
+          subtitle: Text('v1.1.4'),
         ),
         ListTile(
           leading: Icon(Icons.code),

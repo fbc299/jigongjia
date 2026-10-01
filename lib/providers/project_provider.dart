@@ -5,8 +5,30 @@ import 'package:sqflite/sqflite.dart';
 import '../core/database/database_helper.dart';
 import '../core/constants/app_constants.dart';
 import '../models/project.dart';
+import '../providers/work_provider.dart';
+import '../providers/borrow_provider.dart';
+import '../providers/settlement_provider.dart';
+import '../providers/photo_evidence_provider.dart';
 
 class ProjectProvider extends ChangeNotifier {
+  /// 子数据 provider（项目删除时联动清理其内存缓存）。
+  /// 在 main.dart 中通过 [attach] 注入。
+  WorkProvider? _work;
+  BorrowProvider? _borrow;
+  SettlementProvider? _settlement;
+  PhotoEvidenceProvider? _photo;
+
+  void attach({
+    WorkProvider? work,
+    BorrowProvider? borrow,
+    SettlementProvider? settlement,
+    PhotoEvidenceProvider? photo,
+  }) {
+    _work = work;
+    _borrow = borrow;
+    _settlement = settlement;
+    _photo = photo;
+  }
   /// Selector helper: wrap Selector<ProjectProvider, T> to reduce rebuilds.
   static Widget select<T>({
     required T Function(ProjectProvider) selector,
@@ -110,6 +132,11 @@ class ProjectProvider extends ChangeNotifier {
       );
       _projects.removeWhere((p) => p.id == id);
       notifyListeners();
+      // 联动清理子 provider 的内存缓存（DB 端子表由外键 ON DELETE CASCADE 处理）
+      _work?.removeByProject(id);
+      _borrow?.removeByProject(id);
+      _settlement?.removeByProject(id);
+      _photo?.removeByProject(id);
     } catch (e) {
       print('删除项目失败: $e');
       rethrow;

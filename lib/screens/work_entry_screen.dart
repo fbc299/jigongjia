@@ -397,7 +397,7 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
       color = Colors.orange;
     } else if (record.type == WorkType.point) {
       desc = '${record.days}天';
-      if (record.overtimeHours > 0) desc += ' + 加班${record.overtimeHours.toInt()}h';
+      if (record.overtimeHours > 0) desc += ' + 加班${record.overtimeHours.toStringAsFixed(record.overtimeHours == record.overtimeHours.roundToDouble() ? 0 : 1)}h';
       desc += ' · ${PrivacyService.format(record.dailyRate, hide: PrivacyService().isHidden.value)}/天';
       icon = Icons.engineering;
       color = theme.colorScheme.primary;
@@ -653,15 +653,15 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
       projectId: widget.projectId,
       date: widget.date,
       type: _workType,
-      days: _workType == WorkType.point ? _days : 0,
-      dailyRate: _workType == WorkType.point ? _p(_dailyRateCtrl.text) : 0,
-      overtimeHours: _workType == WorkType.point ? _overtimeHours : 0,
-      overtimeRate: _workType == WorkType.point ? _p(_overtimeRateCtrl.text) : 0,
-      packageDays: _workType == WorkType.packageDay ? _p(_packageDaysCtrl.text) : 0,
-      packageDayRate: _workType == WorkType.packageDay ? _p(_packageDayRateCtrl.text) : 0,
-      quantity: _workType == WorkType.packageQty ? _p(_quantityCtrl.text) : 0,
+      days: (_workType == WorkType.point && !_isRest) ? _days : 0,
+      dailyRate: (_workType == WorkType.point && !_isRest) ? _p(_dailyRateCtrl.text) : 0,
+      overtimeHours: (_workType == WorkType.point && !_isRest) ? _overtimeHours : 0,
+      overtimeRate: (_workType == WorkType.point && !_isRest) ? _p(_overtimeRateCtrl.text) : 0,
+      packageDays: (_workType == WorkType.packageDay && !_isRest) ? _p(_packageDaysCtrl.text) : 0,
+      packageDayRate: (_workType == WorkType.packageDay && !_isRest) ? _p(_packageDayRateCtrl.text) : 0,
+      quantity: (_workType == WorkType.packageQty && !_isRest) ? _p(_quantityCtrl.text) : 0,
       qtyUnit: _workType == WorkType.packageQty ? _qtyUnit : '平方',
-      qtyUnitPrice: _workType == WorkType.packageQty ? _p(_qtyUnitPriceCtrl.text) : 0,
+      qtyUnitPrice: (_workType == WorkType.packageQty && !_isRest) ? _p(_qtyUnitPriceCtrl.text) : 0,
       totalWage: _wage,
       note: _noteCtrl.text.trim(),
       isRest: _isRest,

@@ -42,6 +42,12 @@ class PhotoEvidenceProvider extends ChangeNotifier {
     return _photos.where((p) => p.projectId == projectId).toList();
   }
 
+  /// 移除某个项目的所有记录（配合项目删除，清理内存缓存）
+  void removeByProject(String projectId) {
+    _photos.removeWhere((p) => p.projectId == projectId);
+    notifyListeners();
+  }
+
   Future<void> addPhoto(PhotoEvidence photo) async {
     try {
       final db = await DatabaseHelper.instance.database;

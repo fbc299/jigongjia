@@ -92,6 +92,12 @@ class BorrowProvider extends ChangeNotifier {
     return _records.where((r) => r.projectId == projectId).toList();
   }
 
+  /// 移除某个项目的所有记录（配合项目删除，清理内存缓存）
+  void removeByProject(String projectId) {
+    _records.removeWhere((r) => r.projectId == projectId);
+    notifyListeners();
+  }
+
   double getTotalBorrowedByProject(String projectId) {
     return _records
         .where((r) => r.projectId == projectId)

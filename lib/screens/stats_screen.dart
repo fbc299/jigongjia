@@ -707,7 +707,6 @@ class _StatsScreenState extends State<StatsScreen>
     final projectProvider = context.watch<ProjectProvider>();
     final statsProvider = context.watch<StatsProvider>();
     final projects = projectProvider.activeProjects;
-    final numberFormat = NumberFormat('#,##0.00');
 
     if (projects.isEmpty) {
       return const Center(child: Text('暂无项目'));
@@ -735,17 +734,17 @@ class _StatsScreenState extends State<StatsScreen>
                 ),
                 const Divider(),
                 _unpaidRow('总工资',
-                    '¥${numberFormat.format(summary.totalWage)}'),
+                    PrivacyService.format(summary.totalWage, hide: PrivacyService().isHidden.value)),
                 _unpaidRow('总借支',
-                                    '¥${numberFormat.format(summary.totalBorrowed)}',
+                                    PrivacyService.format(summary.totalBorrowed, hide: PrivacyService().isHidden.value),
                                     valueColor: Colors.orange),
                 _unpaidRow('已结算',
-                                    '¥${numberFormat.format(summary.totalSettled)}',
+                                    PrivacyService.format(summary.totalSettled, hide: PrivacyService().isHidden.value),
                                     valueColor: Colors.green),
                 const Divider(),
                 _unpaidRow(
                                   '未结工资',
-                                  '¥${numberFormat.format(summary.unpaidWage)}',
+                                  PrivacyService.format(summary.unpaidWage, hide: PrivacyService().isHidden.value),
                                   valueColor: Colors.red,
                                   bold: true,
                 ),

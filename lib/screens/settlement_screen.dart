@@ -176,6 +176,25 @@ class _SettlementScreenState extends State<SettlementScreen> {
     var selectedDate = DateTime.now();
     var selectedType = SettlementType.partial;
 
+    // 全额结算默认带出「未结工资」，避免手算漏扣借支/已结算
+    final workProv = context.read<WorkProvider>();
+    final borrowProv = context.read<BorrowProvider>();
+    final settleProv = context.read<SettlementProvider>();
+    final totalWage = workProv
+        .getRecordsByProject(widget.projectId)
+        .fold<double>(0, (sum, r) => sum + r.totalWage);
+    final totalBorrowed =
+        borrowProv.getTotalBorrowedByProject(widget.projectId);
+    final totalSettled = settleProv
+        .getSettlementsByProject(widget.projectId)
+        .fold<double>(0, (sum, s) => sum + s.amount);
+    final unpaid = (totalWage - totalBorrowed - totalSettled)
+        .clamp(0, double.maxFinite)
+        .toDouble();
+    final unpaidStr = unpaid == unpaid.roundToDouble()
+        ? unpaid.toInt().toString()
+        : unpaid.toStringAsFixed(2);
+
     showDialog(
       context: context,
       builder: (dialogContext) {
@@ -230,6 +249,12 @@ class _SettlementScreenState extends State<SettlementScreen> {
                         onChanged: (value) {
                           setDialogState(() {
                             selectedType = value ?? SettlementType.partial;
+                            // 切到全额结算时，自动带出未结金额，避免手算漏扣
+                            if (value == SettlementType.full &&
+                                amountController.text.isEmpty &&
+                                unpaid > 0) {
+                              amountController.text = unpaidStr;
+                            }
                           });
                         },
                       ),
@@ -371,7 +396,7 @@ class _SettlementSummary extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            '应发工资 = 总工资 - 累计借支',
+            '未结工资 = 总工资 − 累计借支 − 已结算',
             style: TextStyle(fontSize: 12, color: Colors.grey[500]),
           ),
         ],

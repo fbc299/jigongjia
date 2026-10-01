@@ -10,6 +10,7 @@ import 'package:jigongjia/providers/borrow_provider.dart';
 import 'package:jigongjia/providers/settlement_provider.dart';
 import 'package:jigongjia/providers/expense_provider.dart';
 import 'package:jigongjia/providers/note_provider.dart';
+import 'package:jigongjia/providers/photo_evidence_provider.dart';
 import 'package:jigongjia/screens/work_entry_screen.dart';
 import 'package:jigongjia/screens/home_screen.dart';
 import 'package:jigongjia/screens/stats_screen.dart';
@@ -83,6 +84,7 @@ class _AppShellState extends State<AppShell> {
         'settlements': ctx.read<SettlementProvider>().settlements.map((s) => s.toMap()).toList(),
         'expenses': ctx.read<ExpenseProvider>().expenses.map((e) => e.toMap()).toList(),
         'notes': ctx.read<NoteProvider>().notes.map((n) => n.toMap()).toList(),
+        'photoEvidence': ctx.read<PhotoEvidenceProvider>().photos.map((p) => p.toMap()).toList(),
       });
       final date = DateFormat('yyyyMMdd').format(DateTime.now());
       final projectNames = projects.map((p) => p.name).join('+');

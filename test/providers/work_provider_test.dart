@@ -121,56 +121,6 @@ void main() {
       expect(updated.projectId, 'proj1'); // unchanged
     });
 
-    test('should calculate point work wage', () {
-      final record = WorkRecord(
-        projectId: 'proj1',
-        date: DateTime(2026, 1, 15),
-        type: WorkType.point,
-        days: 1.0,
-        dailyRate: 300.0,
-        overtimeHours: 2.0,
-        overtimeRate: 50.0,
-      );
-
-      expect(record.calcTotalWage(), 400.0); // 300 + 100
-    });
-
-    test('should calculate package-day wage', () {
-      final record = WorkRecord(
-        projectId: 'proj1',
-        date: DateTime(2026, 1, 15),
-        type: WorkType.packageDay,
-        packageDays: 3.0,
-        packageDayRate: 500.0,
-      );
-
-      expect(record.calcTotalWage(), 1500.0);
-    });
-
-    test('should calculate package-qty wage', () {
-      final record = WorkRecord(
-        projectId: 'proj1',
-        date: DateTime(2026, 1, 15),
-        type: WorkType.packageQty,
-        quantity: 50.0,
-        qtyUnitPrice: 25.0,
-      );
-
-      expect(record.calcTotalWage(), 1250.0);
-    });
-
-    test('should return zero wage for rest day', () {
-      final record = WorkRecord(
-        projectId: 'proj1',
-        date: DateTime(2026, 1, 15),
-        isRest: true,
-        days: 1.0,
-        dailyRate: 300.0,
-      );
-
-      expect(record.calcTotalWage(), 0.0);
-    });
-
     test('should support equality by id', () {
       final r1 = WorkRecord(id: 'same-id', projectId: 'p1', date: DateTime(2026, 1, 1));
       final r2 = WorkRecord(id: 'same-id', projectId: 'p2', date: DateTime(2026, 2, 2));

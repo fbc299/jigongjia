@@ -71,10 +71,13 @@ class NetworkBackupService {
   }
 
   /// 拼接服务端 URL，未设账号时不带 account 参数（旧行为 / 根目录）。
-  Uri _uri(String path) => Uri.parse('$_serverUrl$path').replace(
-        queryParameters:
-            account == null || account.isEmpty ? null : {'account': account},
-      );
+  Uri _uri(String path) {
+    final acct = account;
+    return Uri.parse('$_serverUrl$path').replace(
+      queryParameters:
+          (acct == null || acct.isEmpty) ? null : {'account': acct},
+    );
+  }
 
   /// Retry an async action with exponential backoff.
   /// Delays: 1s, 2s, 4s (2^0, 2^1, 2^2) by default.

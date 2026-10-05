@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../account/account_service.dart';
+
 /// Progress callback: reports 0.0 ~ 1.0 during upload/download operations.
 typedef ProgressCallback = void Function(double progress);
 
@@ -37,6 +39,7 @@ class NetworkBackupService {
       final prefs = await SharedPreferences.getInstance();
       _serverUrl = prefs.getString(_prefUrl) ?? _defaultUrl;
       _token = prefs.getString(_prefToken) ?? _defaultToken;
+      account = AccountService().currentUsername;
     } catch (e) {
       print('加载备份配置失败: $e');
       rethrow;

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' show SystemNavigator;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -22,6 +23,7 @@ import '../models/expense.dart';
 import '../models/note.dart';
 import '../models/photo_evidence.dart';
 import '../core/utils/network_backup.dart';
+import '../core/account/account_service.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -32,6 +34,9 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('设置')),
       body: ListView(
         children: [
+          _buildSectionHeader(context, '账号管理'),
+          const _AccountManagementSection(),
+          const Divider(height: 1),
           _buildSectionHeader(context, '项目管理'),
           const _ProjectManagementSection(),
           const Divider(height: 1),
@@ -92,6 +97,298 @@ Future<void> _importFromBackupJson(BuildContext context, String jsonStr) async {
   for (final m in (backup['photoEvidence'] as List? ?? [])) {
     final p = PhotoEvidence.fromMap(m);
     if (await File(p.filePath).exists()) await photo.addPhoto(p);
+  }
+}
+
+// ===================== Account Management =====================
+
+class _AccountManagementSection extends StatefulWidget {
+  const _AccountManagementSection();
+
+  @override
+  State<_AccountManagementSection> createState() =>
+      _AccountManagementSectionState();
+}
+
+class _AccountManagementSectionState extends State<_AccountManagementSection> {
+  @override
+  Widget build(BuildContext context) {
+    final current = AccountService().currentUsername;
+    if (current == null) {
+      return Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.badge_outlined),
+            title: const Text('注册账号'),
+            subtitle: const Text('注册后数据按账号独立存储'),
+            onTap: _showRegisterDialog,
+          ),
+          ListTile(
+            leading: const Icon(Icons.login),
+            title: const Text('登录已有账号'),
+            subtitle: const Text('已在本机注册过'),
+            onTap: _showLoginDialog,
+          ),
+        ],
+      );
+    }
+    final errorColor = Theme.of(context).colorScheme.error;
+    return Column(
+      children: [
+        ListTile(
+          leading: const Icon(Icons.account_circle),
+          title: Text(current),
+          subtitle: const Text('数据独立存储于该账号'),
+        ),
+        ListTile(
+          leading: const Icon(Icons.swap_horiz),
+          title: const Text('切换账号'),
+          subtitle: const Text('在本机已注册的账号间切换'),
+          onTap: () => _showSwitchSheet(current),
+        ),
+        ListTile(
+          leading: Icon(Icons.logout, color: errorColor),
+          title: Text('退出登录', style: TextStyle(color: errorColor)),
+          subtitle: const Text('回到无账号共享数据模式'),
+          onTap: _showLogoutConfirm,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showRegisterDialog() async {
+    final formKey = GlobalKey<FormState>();
+    final uCtrl = TextEditingController();
+    final pCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('注册账号'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: uCtrl,
+                decoration: const InputDecoration(
+                  labelText: '用户名',
+                  hintText: '1-20个字符，中文/字母/数字/_.-',
+                ),
+                validator: (v) {
+                  final s = v?.trim() ?? '';
+                  if (s.isEmpty || s.length > 20) return '用户名需为 1-20 个字符';
+                  if (!RegExp(r'^[\u4e00-\u9fa5A-Za-z0-9_.\-]+$')
+                      .hasMatch(s)) {
+                    return '仅允许中文、字母、数字及 _. -';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: pCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: '密码',
+                  hintText: '至少 6 位',
+                ),
+                validator: (v) {
+                  if ((v ?? '').length < 6) return '密码至少 6 位';
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(ctx, true);
+              }
+            },
+            child: const Text('注册'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await AccountService().register(uCtrl.text.trim(), pCtrl.text);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('账号已注册并启用')),
+      );
+      SystemNavigator.relaunch();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _showLoginDialog() async {
+    final formKey = GlobalKey<FormState>();
+    final uCtrl = TextEditingController();
+    final pCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('登录账号'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: uCtrl,
+                decoration: const InputDecoration(labelText: '用户名'),
+                validator: (v) {
+                  final s = v?.trim() ?? '';
+                  if (s.isEmpty) return '请输入用户名';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: pCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: '密码'),
+                validator: (v) {
+                  if ((v ?? '').isEmpty) return '请输入密码';
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(ctx, true);
+              }
+            },
+            child: const Text('登录'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await AccountService().login(uCtrl.text.trim(), pCtrl.text);
+      if (!mounted) return;
+      SystemNavigator.relaunch();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _showSwitchSheet(String current) async {
+    List<Account> accounts;
+    try {
+      accounts = await AccountService().load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    final others = accounts.where((a) => a.username != current).toList();
+    if (others.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('无其他已注册账号')),
+      );
+      return;
+    }
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                '切换账号',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+            ...others.map(
+              (a) => ListTile(
+                leading: const Icon(Icons.account_circle),
+                title: Text(a.username),
+                onTap: () => Navigator.pop(ctx, a.username),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    try {
+      await AccountService().switchAccount(selected);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    SystemNavigator.relaunch();
+  }
+
+  Future<void> _showLogoutConfirm() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('退出登录'),
+        content: const Text('退出后回到无账号共享数据模式，账号数据保留在设备与云端。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('退出登录'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await AccountService().logout();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    SystemNavigator.relaunch();
   }
 }
 
@@ -589,7 +886,7 @@ class _AboutSection extends StatelessWidget {
         ListTile(
           leading: Icon(Icons.info_outline),
           title: Text('版本'),
-          subtitle: Text('v1.1.5'),
+          subtitle: Text('v1.1.7'),
         ),
         ListTile(
           leading: Icon(Icons.code),

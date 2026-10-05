@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
+import 'package:jigongjia/core/account/account_service.dart';
 import 'package:jigongjia/core/theme/app_theme.dart';
 import 'package:jigongjia/providers/project_provider.dart';
 import 'package:jigongjia/providers/work_provider.dart';
@@ -13,7 +14,9 @@ import 'package:jigongjia/providers/note_provider.dart';
 import 'package:jigongjia/providers/photo_evidence_provider.dart';
 import 'package:jigongjia/app.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AccountService().load();
   final workProvider = WorkProvider();
   final borrowProvider = BorrowProvider();
   final settlementProvider = SettlementProvider();

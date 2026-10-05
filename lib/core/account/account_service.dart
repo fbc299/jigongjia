@@ -112,14 +112,9 @@ class AccountService {
     }
   }
 
-  /// 快速切换账号（不做密码校验，仅限已登录过的账号）。
+  /// 切换到已注册账号的数据库（不做密码校验）。
   Future<void> switchAccount(String username) async {
-    try {
-      await setCurrent(username);
-    } catch (e) {
-      print('切换账号失败: $e');
-      rethrow;
-    }
+    await setCurrent(username);
   }
 
   /// 退出登录，回到 legacy 模式。

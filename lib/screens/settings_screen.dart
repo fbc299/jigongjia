@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui' show SystemNavigator;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -156,6 +155,17 @@ class _AccountManagementSectionState extends State<_AccountManagementSection> {
     );
   }
 
+  /// 账号切换后重载 7 个 provider 的内存缓存，使其指向当前账号的数据库。
+  Future<void> _reloadAllData() async {
+    await context.read<WorkProvider>().reloadAll();
+    await context.read<BorrowProvider>().reloadAll();
+    await context.read<SettlementProvider>().reloadAll();
+    await context.read<ExpenseProvider>().reloadAll();
+    await context.read<NoteProvider>().reloadAll();
+    await context.read<PhotoEvidenceProvider>().reloadAll();
+    await context.read<ProjectProvider>().reloadAll();
+  }
+
   Future<void> _showRegisterDialog() async {
     final formKey = GlobalKey<FormState>();
     final uCtrl = TextEditingController();
@@ -220,11 +230,11 @@ class _AccountManagementSectionState extends State<_AccountManagementSection> {
     if (ok != true || !mounted) return;
     try {
       await AccountService().register(uCtrl.text.trim(), pCtrl.text);
+      await _reloadAllData();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('账号已注册并启用')),
       );
-      SystemNavigator.relaunch();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -288,8 +298,11 @@ class _AccountManagementSectionState extends State<_AccountManagementSection> {
     if (ok != true || !mounted) return;
     try {
       await AccountService().login(uCtrl.text.trim(), pCtrl.text);
+      await _reloadAllData();
       if (!mounted) return;
-      SystemNavigator.relaunch();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('登录成功')),
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -346,16 +359,18 @@ class _AccountManagementSectionState extends State<_AccountManagementSection> {
     if (selected == null || !mounted) return;
     try {
       await AccountService().switchAccount(selected);
+      await _reloadAllData();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('已切换到 $selected')),
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('$e')),
         );
       }
-      return;
     }
-    if (!mounted) return;
-    SystemNavigator.relaunch();
   }
 
   Future<void> _showLogoutConfirm() async {
@@ -379,16 +394,18 @@ class _AccountManagementSectionState extends State<_AccountManagementSection> {
     if (ok != true || !mounted) return;
     try {
       await AccountService().logout();
+      await _reloadAllData();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已退出到共享数据模式')),
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('$e')),
         );
       }
-      return;
     }
-    if (!mounted) return;
-    SystemNavigator.relaunch();
   }
 }
 

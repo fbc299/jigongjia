@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import '../core/database/database_helper.dart';
+import '../core/account/account_service.dart';
 import '../core/constants/app_constants.dart';
 import '../models/photo_evidence.dart';
 
@@ -25,7 +26,7 @@ class PhotoEvidenceProvider extends ChangeNotifier {
 
   Future<void> loadPhotos() async {
     try {
-      final db = await DatabaseHelper.instance.database;
+      final db = await DatabaseHelper.instance.databaseForAccount(AccountService().currentUsername);
       final maps = await db.query(
         AppConstants.tablePhotoEvidence,
         orderBy: 'createdAt DESC',
@@ -36,6 +37,12 @@ class PhotoEvidenceProvider extends ChangeNotifier {
       print('加载照片记录失败: $e');
       rethrow;
     }
+  }
+
+  /// 账号切换后重载：清空内存缓存并重新从当前账号库读取。
+  Future<void> reloadAll() async {
+    _photos.clear();
+    await loadPhotos();
   }
 
   List<PhotoEvidence> getPhotosByProject(String projectId) {
@@ -50,7 +57,7 @@ class PhotoEvidenceProvider extends ChangeNotifier {
 
   Future<void> addPhoto(PhotoEvidence photo) async {
     try {
-      final db = await DatabaseHelper.instance.database;
+      final db = await DatabaseHelper.instance.databaseForAccount(AccountService().currentUsername);
       await db.insert(
         AppConstants.tablePhotoEvidence,
         photo.toMap(),
@@ -66,7 +73,7 @@ class PhotoEvidenceProvider extends ChangeNotifier {
 
   Future<void> deletePhoto(String id) async {
     try {
-      final db = await DatabaseHelper.instance.database;
+      final db = await DatabaseHelper.instance.databaseForAccount(AccountService().currentUsername);
       await db.delete(
         AppConstants.tablePhotoEvidence,
         where: 'id = ?',

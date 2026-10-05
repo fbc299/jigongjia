@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import '../core/database/database_helper.dart';
+import '../core/account/account_service.dart';
 import '../core/constants/app_constants.dart';
 import '../models/work_record.dart';
 
@@ -25,7 +26,7 @@ class WorkProvider extends ChangeNotifier {
 
   Future<void> loadRecords() async {
     try {
-      final db = await DatabaseHelper.instance.database;
+      final db = await DatabaseHelper.instance.databaseForAccount(AccountService().currentUsername);
       final maps = await db.query(
         AppConstants.tableWorkRecords,
         orderBy: 'date DESC',
@@ -38,9 +39,15 @@ class WorkProvider extends ChangeNotifier {
     }
   }
 
+  /// 账号切换后重载：清空内存缓存并重新从当前账号库读取。
+  Future<void> reloadAll() async {
+    _records.clear();
+    await loadRecords();
+  }
+
   Future<void> addRecord(WorkRecord record) async {
     try {
-      final db = await DatabaseHelper.instance.database;
+      final db = await DatabaseHelper.instance.databaseForAccount(AccountService().currentUsername);
       await db.insert(
         AppConstants.tableWorkRecords,
         record.toMap(),
@@ -56,7 +63,7 @@ class WorkProvider extends ChangeNotifier {
 
   Future<void> updateRecord(WorkRecord record) async {
     try {
-      final db = await DatabaseHelper.instance.database;
+      final db = await DatabaseHelper.instance.databaseForAccount(AccountService().currentUsername);
       await db.update(
         AppConstants.tableWorkRecords,
         record.toMap(),
@@ -76,7 +83,7 @@ class WorkProvider extends ChangeNotifier {
 
   Future<void> deleteRecord(String id) async {
     try {
-      final db = await DatabaseHelper.instance.database;
+      final db = await DatabaseHelper.instance.databaseForAccount(AccountService().currentUsername);
       await db.delete(
         AppConstants.tableWorkRecords,
         where: 'id = ?',

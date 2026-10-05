@@ -10,8 +10,9 @@ class WatermarkUtil {
   static Future<String> addWatermark(
     String imagePath,
     String projectName,
-    DateTime timestamp,
-  ) async {
+    DateTime timestamp, {
+    String? account,
+  }) async {
     try {
     final file = File(imagePath);
     if (!await file.exists()) {
@@ -49,9 +50,13 @@ class WatermarkUtil {
       color: img.ColorRgb8(255, 255, 255),
     );
 
-    // Save to app documents directory
+    // Save to app documents directory (per-account subdir)
     final appDir = await getApplicationDocumentsDirectory();
-    final photoDir = Directory(p.join(appDir.path, 'photo_evidence'));
+    final photoDir = Directory(
+      (account == null || account.isEmpty)
+          ? p.join(appDir.path, 'photo_evidence')
+          : p.join(appDir.path, 'photo_evidence', account),
+    );
     if (!await photoDir.exists()) {
       await photoDir.create(recursive: true);
     }

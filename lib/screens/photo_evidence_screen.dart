@@ -8,6 +8,7 @@ import '../providers/photo_evidence_provider.dart';
 import '../providers/project_provider.dart';
 import '../models/photo_evidence.dart';
 import '../core/utils/watermark_util.dart';
+import '../core/account/account_service.dart';
 
 class PhotoEvidenceScreen extends StatefulWidget {
   final String? projectId;
@@ -198,6 +199,7 @@ class _PhotoEvidenceScreenState extends State<PhotoEvidenceScreen> {
         image.path,
         project.name,
         now,
+        account: AccountService().currentUsername,
       );
 
       final photoEvidence = PhotoEvidence(

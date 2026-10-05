@@ -7,6 +7,9 @@ class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._();
   static Database? _database;
 
+  /// 当前账号（null = legacy 模式）。与 [databaseForAccount] 配合切换数据库文件。
+  String? currentAccount;
+
   Future<Database> get database async {
     try {
       if (_database != null) return _database!;
@@ -18,10 +21,30 @@ class DatabaseHelper {
     }
   }
 
+  /// 按账号取数据库：已打开且账号未变则直接复用，否则关闭旧库、切换到新库文件。
+  Future<Database> databaseForAccount(String? account) async {
+    try {
+      if (_database != null && account == currentAccount) {
+        return _database!;
+      }
+      await close();
+      currentAccount = account;
+      _database = await _open(AppConstants.dbFileNameForAccount(account));
+      return _database!;
+    } catch (e) {
+      print('获取账号数据库失败: $e');
+      rethrow;
+    }
+  }
+
   Future<Database> _initDatabase() async {
+    return _open(AppConstants.dbName);
+  }
+
+  Future<Database> _open(String fileName) async {
     try {
       final dbPath = await getDatabasesPath();
-      final path = join(dbPath, AppConstants.dbName);
+      final path = join(dbPath, fileName);
       return await openDatabase(
         path,
         version: AppConstants.dbVersion,

@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import '../core/database/database_helper.dart';
+import '../core/account/account_service.dart';
 import '../core/constants/app_constants.dart';
 import '../models/project.dart';
 import '../providers/work_provider.dart';
@@ -61,7 +62,7 @@ class ProjectProvider extends ChangeNotifier {
 
   Future<void> loadProjects() async {
     try {
-      final db = await DatabaseHelper.instance.database;
+      final db = await DatabaseHelper.instance.databaseForAccount(AccountService().currentUsername);
       final maps = await db.query(
         AppConstants.tableProjects,
         orderBy: 'createdAt DESC',
@@ -74,9 +75,15 @@ class ProjectProvider extends ChangeNotifier {
     }
   }
 
+  /// 账号切换后重载：清空内存缓存并重新从当前账号库读取。
+  Future<void> reloadAll() async {
+    _projects.clear();
+    await loadProjects();
+  }
+
   Future<void> addProject(Project project) async {
     try {
-      final db = await DatabaseHelper.instance.database;
+      final db = await DatabaseHelper.instance.databaseForAccount(AccountService().currentUsername);
       await db.insert(
         AppConstants.tableProjects,
         project.toMap(),
@@ -92,7 +99,7 @@ class ProjectProvider extends ChangeNotifier {
 
   Future<void> updateProject(Project project) async {
     try {
-      final db = await DatabaseHelper.instance.database;
+      final db = await DatabaseHelper.instance.databaseForAccount(AccountService().currentUsername);
       await db.update(
         AppConstants.tableProjects,
         project.toMap(),
@@ -124,7 +131,7 @@ class ProjectProvider extends ChangeNotifier {
 
   Future<void> deleteProject(String id) async {
     try {
-      final db = await DatabaseHelper.instance.database;
+      final db = await DatabaseHelper.instance.databaseForAccount(AccountService().currentUsername);
       await db.delete(
         AppConstants.tableProjects,
         where: 'id = ?',

@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import '../core/database/database_helper.dart';
+import '../core/account/account_service.dart';
 import '../core/constants/app_constants.dart';
 import '../models/borrow_record.dart';
 
@@ -25,7 +26,7 @@ class BorrowProvider extends ChangeNotifier {
 
   Future<void> loadRecords() async {
     try {
-      final db = await DatabaseHelper.instance.database;
+      final db = await DatabaseHelper.instance.databaseForAccount(AccountService().currentUsername);
       final maps = await db.query(
         AppConstants.tableBorrowRecords,
         orderBy: 'date DESC',
@@ -38,9 +39,15 @@ class BorrowProvider extends ChangeNotifier {
     }
   }
 
+  /// 账号切换后重载：清空内存缓存并重新从当前账号库读取。
+  Future<void> reloadAll() async {
+    _records.clear();
+    await loadRecords();
+  }
+
   Future<void> addRecord(BorrowRecord record) async {
     try {
-      final db = await DatabaseHelper.instance.database;
+      final db = await DatabaseHelper.instance.databaseForAccount(AccountService().currentUsername);
       await db.insert(
         AppConstants.tableBorrowRecords,
         record.toMap(),
@@ -56,7 +63,7 @@ class BorrowProvider extends ChangeNotifier {
 
   Future<void> deleteRecord(String id) async {
     try {
-      final db = await DatabaseHelper.instance.database;
+      final db = await DatabaseHelper.instance.databaseForAccount(AccountService().currentUsername);
       await db.delete(
         AppConstants.tableBorrowRecords,
         where: 'id = ?',
@@ -72,7 +79,7 @@ class BorrowProvider extends ChangeNotifier {
 
   Future<void> updateRecord(BorrowRecord record) async {
     try {
-      final db = await DatabaseHelper.instance.database;
+      final db = await DatabaseHelper.instance.databaseForAccount(AccountService().currentUsername);
       await db.update(
         AppConstants.tableBorrowRecords,
         record.toMap(),

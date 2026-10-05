@@ -23,6 +23,9 @@ class NetworkBackupService {
   String _token = _defaultToken;
   SharedPreferences? _prefs;
 
+  /// 当前账号（调用方设置）。非空时备份请求带 ?account= 参数，服务端按账号分目录存储。
+  String? account;
+
   /// Initialize and cache SharedPreferences instance.
   Future<SharedPreferences> _getPrefs() async {
     _prefs ??= await SharedPreferences.getInstance();
@@ -64,6 +67,12 @@ class NetworkBackupService {
     return headers;
   }
 
+  /// 拼接服务端 URL，未设账号时不带 account 参数（旧行为 / 根目录）。
+  Uri _uri(String path) => Uri.parse('$_serverUrl$path').replace(
+        queryParameters:
+            account == null || account.isEmpty ? null : {'account': account},
+      );
+
   /// Retry an async action with exponential backoff.
   /// Delays: 1s, 2s, 4s (2^0, 2^1, 2^2) by default.
   Future<T> _retry<T>(
@@ -87,7 +96,7 @@ class NetworkBackupService {
   Future<bool> ping() async {
     try {
       final resp = await _retry(() => http
-          .get(Uri.parse('$_serverUrl/api/ping'))
+          .get(_uri('/api/ping'))
           .timeout(const Duration(seconds: 5)));
       return resp.statusCode == 200;
     } catch (e) {
@@ -115,7 +124,7 @@ class NetworkBackupService {
         body = json.encode(data);
       }
       final resp = await http
-          .post(Uri.parse('$_serverUrl/api/backup'),
+          .post(_uri('/api/backup'),
               headers: _headers, body: body)
           .timeout(const Duration(seconds: 30));
       onProgress?.call(0.9);
@@ -139,7 +148,7 @@ class NetworkBackupService {
     return _retry(() async {
       debugPrint('[NetworkBackup] 获取备份列表...');
       final resp = await http
-          .get(Uri.parse('$_serverUrl/api/backups'), headers: _headers)
+          .get(_uri('/api/backups'), headers: _headers)
           .timeout(const Duration(seconds: 10));
       if (resp.statusCode == 200) {
         final data = json.decode(resp.body);
@@ -165,7 +174,7 @@ class NetworkBackupService {
       onProgress?.call(0.0);
       debugPrint('[NetworkBackup] 开始下载: $name');
       final resp = await http
-          .get(Uri.parse('$_serverUrl/api/backup/$name'), headers: _headers)
+          .get(_uri('/api/backup/$name'), headers: _headers)
           .timeout(const Duration(seconds: 30));
       onProgress?.call(0.9);
       if (resp.statusCode == 200) {
@@ -187,7 +196,7 @@ class NetworkBackupService {
     return _retry(() async {
       debugPrint('[NetworkBackup] 删除备份: $name');
       final resp = await http
-          .delete(Uri.parse('$_serverUrl/api/backup/$name'), headers: _headers)
+          .delete(_uri('/api/backup/$name'), headers: _headers)
           .timeout(const Duration(seconds: 10));
       if (resp.statusCode != 200) {
         throw Exception('删除失败: HTTP ${resp.statusCode}');

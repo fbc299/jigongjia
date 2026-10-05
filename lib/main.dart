@@ -13,6 +13,7 @@ import 'package:jigongjia/providers/expense_provider.dart';
 import 'package:jigongjia/providers/note_provider.dart';
 import 'package:jigongjia/providers/photo_evidence_provider.dart';
 import 'package:jigongjia/app.dart';
+import 'package:jigongjia/screens/app_entry.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,7 +58,7 @@ void main() async {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        home: const AppShell(),
+        home: const AppEntry(),
       ),
     ),
   );

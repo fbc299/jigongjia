@@ -1,7 +1,7 @@
 name: jigongjia
 description: 格格记工 - 工人记工模块
 publish_to: 'none'
-version: 1.1.7+19
+version: 1.1.8+20
 
 environment:
   sdk: ^3.8.1

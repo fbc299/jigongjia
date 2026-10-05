@@ -114,21 +114,10 @@ class _AccountManagementSectionState extends State<_AccountManagementSection> {
   Widget build(BuildContext context) {
     final current = AccountService().currentUsername;
     if (current == null) {
-      return Column(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.badge_outlined),
-            title: const Text('注册账号'),
-            subtitle: const Text('注册后数据按账号独立存储'),
-            onTap: _showRegisterDialog,
-          ),
-          ListTile(
-            leading: const Icon(Icons.login),
-            title: const Text('登录已有账号'),
-            subtitle: const Text('已在本机注册过'),
-            onTap: _showLoginDialog,
-          ),
-        ],
+      return const ListTile(
+        leading: Icon(Icons.person_outline),
+        title: Text('未登录'),
+        subtitle: Text('在启动页可注册/登录'),
       );
     }
     final errorColor = Theme.of(context).colorScheme.error;
@@ -164,152 +153,6 @@ class _AccountManagementSectionState extends State<_AccountManagementSection> {
     await context.read<NoteProvider>().reloadAll();
     await context.read<PhotoEvidenceProvider>().reloadAll();
     await context.read<ProjectProvider>().reloadAll();
-  }
-
-  Future<void> _showRegisterDialog() async {
-    final formKey = GlobalKey<FormState>();
-    final uCtrl = TextEditingController();
-    final pCtrl = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('注册账号'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: uCtrl,
-                decoration: const InputDecoration(
-                  labelText: '用户名',
-                  hintText: '1-20个字符，中文/字母/数字/_.-',
-                ),
-                validator: (v) {
-                  final s = v?.trim() ?? '';
-                  if (s.isEmpty || s.length > 20) return '用户名需为 1-20 个字符';
-                  if (!RegExp(r'^[\u4e00-\u9fa5A-Za-z0-9_.\-]+$')
-                      .hasMatch(s)) {
-                    return '仅允许中文、字母、数字及 _. -';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: pCtrl,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: '密码',
-                  hintText: '至少 6 位',
-                ),
-                validator: (v) {
-                  if ((v ?? '').length < 6) return '密码至少 6 位';
-                  return null;
-                },
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Navigator.pop(ctx, true);
-              }
-            },
-            child: const Text('注册'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-    try {
-      await AccountService().register(uCtrl.text.trim(), pCtrl.text);
-      await _reloadAllData();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('账号已注册并启用')),
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _showLoginDialog() async {
-    final formKey = GlobalKey<FormState>();
-    final uCtrl = TextEditingController();
-    final pCtrl = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('登录账号'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: uCtrl,
-                decoration: const InputDecoration(labelText: '用户名'),
-                validator: (v) {
-                  final s = v?.trim() ?? '';
-                  if (s.isEmpty) return '请输入用户名';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: pCtrl,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: '密码'),
-                validator: (v) {
-                  if ((v ?? '').isEmpty) return '请输入密码';
-                  return null;
-                },
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Navigator.pop(ctx, true);
-              }
-            },
-            child: const Text('登录'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-    try {
-      await AccountService().login(uCtrl.text.trim(), pCtrl.text);
-      await _reloadAllData();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('登录成功')),
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e')),
-        );
-      }
-    }
   }
 
   Future<void> _showSwitchSheet(String current) async {
@@ -903,7 +746,7 @@ class _AboutSection extends StatelessWidget {
         ListTile(
           leading: Icon(Icons.info_outline),
           title: Text('版本'),
-          subtitle: Text('v1.1.7'),
+          subtitle: Text('v1.1.8'),
         ),
         ListTile(
           leading: Icon(Icons.code),

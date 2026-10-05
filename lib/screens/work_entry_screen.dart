@@ -788,7 +788,7 @@ class _MonthlyStatsPanel extends StatelessWidget {
                 children: [
                   _StatCell(
                       label: '出勤',
-                      value: '${s.workDays}天',
+                      value: '${s.workDays % 1 == 0 ? s.workDays.toInt() : s.workDays}天',
                       color: Colors.green),
                   _StatCell(
                       label: '加班',

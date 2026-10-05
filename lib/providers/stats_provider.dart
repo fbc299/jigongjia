@@ -30,7 +30,7 @@ class ProjectSummary {
 }
 
 class MonthlyStats {
-  final int workDays;
+  final double workDays;
   final double overtimeHours;
   final double totalIncome;
   final double borrowAmount;
@@ -107,7 +107,16 @@ class StatsProvider extends ChangeNotifier {
     final records = _workProvider.getRecordsByMonth(projectId, year, month);
     final workRecords = records.where((r) => !r.isRest).toList();
 
-    final workDays = workRecords.length;
+    final workDays = workRecords.fold(0.0, (sum, r) {
+      switch (r.type) {
+        case WorkType.point:
+          return sum + r.days;
+        case WorkType.packageDay:
+          return sum + r.packageDays;
+        case WorkType.packageQty:
+          return sum + (r.quantity > 0 ? 1.0 : 0.0);
+      }
+    });
     final overtimeHours = workRecords.fold(
       0.0,
       (sum, r) => sum + r.overtimeHours,
@@ -119,20 +128,19 @@ class StatsProvider extends ChangeNotifier {
         r.date.year == year && r.date.month == month);
     final borrowAmount = monthBorrows.fold(0.0, (sum, r) => sum + r.amount);
 
-    // Unpaid = total wage from all project records - total borrowed - total settled
-    final allWorkRecords = _workProvider.getRecordsByProject(projectId);
-    final totalWageAll = allWorkRecords.fold(0.0, (sum, r) => sum + r.totalWage);
-    final totalBorrowedAll = _borrowProvider.getTotalBorrowedByProject(projectId);
-    final settlements = _settlementProvider.getSettlementsByProject(projectId);
-    final totalSettledAll = settlements.fold(0.0, (sum, s) => sum + s.amount);
-    final unpaidAmount = totalWageAll - totalBorrowedAll - totalSettledAll;
+    // 未结 = 当月工资 - 当月借支 - 当月结算（当月口径，与面板其它指标一致）
+    final settlementRecords = _settlementProvider.getSettlementsByProject(projectId);
+    final monthSettlements = settlementRecords.where((s) =>
+        s.date.year == year && s.date.month == month);
+    final settlementAmount = monthSettlements.fold(0.0, (sum, s) => sum + s.amount);
+    final unpaidAmount = totalIncome - borrowAmount - settlementAmount;
 
     return MonthlyStats(
       workDays: workDays,
       overtimeHours: overtimeHours,
       totalIncome: totalIncome,
       borrowAmount: borrowAmount,
-      unpaidAmount: unpaidAmount < 0 ? 0 : unpaidAmount,
+      unpaidAmount: unpaidAmount,
     );
   }
 
@@ -148,9 +156,8 @@ class StatsProvider extends ChangeNotifier {
       final dateKey = DateTime(year, month, record.date.day);
       if (record.isRest) {
         result[dateKey] = AttendanceStatus.rest;
-      } else if (record.overtimeHours > 0) {
-        result[dateKey] = AttendanceStatus.overtime;
       } else {
+        // 加班是出勤日的注解，不单独作为状态；有加班的出勤日仍归为出勤(worked)
         result[dateKey] = AttendanceStatus.worked;
       }
     }

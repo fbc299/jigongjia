@@ -49,19 +49,6 @@ class WorkRecord {
         totalWage = totalWage ?? 0.0,
         createdAt = createdAt ?? DateTime.now();
 
-  /// Calculate total wage based on work type
-  double calcTotalWage() {
-    if (isRest) return 0.0;
-    switch (type) {
-      case WorkType.point:
-        return days * dailyRate + overtimeHours * overtimeRate;
-      case WorkType.packageDay:
-        return packageDays * packageDayRate;
-      case WorkType.packageQty:
-        return quantity * qtyUnitPrice;
-    }
-  }
-
   Map<String, dynamic> toMap() {
     return {
       'id': id,

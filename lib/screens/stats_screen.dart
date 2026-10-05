@@ -244,9 +244,11 @@ class _StatsScreenState extends State<StatsScreen>
         // 查找当天的记录，获取加班时长
         final dayRecord = records.where((r) => r.date.day == day && r.date.month == _currentMonth.month && r.date.year == _currentMonth.year).firstOrNull;
         final overtimeHours = dayRecord?.overtimeHours ?? 0;
-        final label = status == AttendanceStatus.overtime && overtimeHours > 0
+        // 出勤日为绿色；加班是出勤日的注解，显示加班小时数但不再把状态改成 overtime
+        final label = _statusLabel(status);
+        final overtimeNote = status == AttendanceStatus.worked && overtimeHours > 0
             ? '${overtimeHours.toStringAsFixed(overtimeHours == overtimeHours.roundToDouble() ? 0 : 1)}小时'
-            : _statusLabel(status);
+            : '';
 
         return Container(
           margin: const EdgeInsets.all(2),
@@ -272,6 +274,11 @@ class _StatsScreenState extends State<StatsScreen>
               if (label.isNotEmpty)
                 Text(
                   label,
+                  style: TextStyle(fontSize: 9, color: color),
+                ),
+              if (overtimeNote.isNotEmpty)
+                Text(
+                  overtimeNote,
                   style: TextStyle(fontSize: 9, color: color),
                 ),
             ],
@@ -457,7 +464,7 @@ class _StatsScreenState extends State<StatsScreen>
                 child: StatCard(
                   icon: Icons.calendar_today,
                   label: '总工天',
-                  value: '${monthlyStats.workDays}',
+                  value: '${monthlyStats.workDays % 1 == 0 ? monthlyStats.workDays.toInt() : monthlyStats.workDays}',
                   color: Theme.of(context).colorScheme.primary,
                 ),
               ),

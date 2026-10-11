@@ -1,0 +1,15 @@
+[Unit]
+Description=jianyi-jigong Backup Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /vol1/fbc299/jianyi-jigong-server/backup_server.py --port 18080
+WorkingDirectory=/vol1/fbc299/jianyi-jigong-server
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

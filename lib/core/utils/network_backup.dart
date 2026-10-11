@@ -9,12 +9,40 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Progress callback: reports 0.0 ~ 1.0 during upload/download operations.
 typedef ProgressCallback = void Function(double progress);
 
+/// 一次备份上传的结果：分别记录「服务器」与「腾讯云存储桶(COS)」是否成功。
+class BackupUploadResult {
+  final String name;
+  /// 服务器（NAS 备份服务端）是否成功。
+  final bool serverOk;
+  /// 腾讯云存储桶是否成功；null = 服务端未报告（旧版本）。
+  final bool? cosOk;
+
+  const BackupUploadResult({
+    required this.name,
+    required this.serverOk,
+    this.cosOk,
+  });
+
+  /// 生成给用户的提示文案（哪个失败就报哪个）。
+  String get message {
+    if (!serverOk) return '服务器备份失败';
+    switch (cosOk) {
+      case true:
+        return '备份成功：服务器 ✓ 腾讯云存储桶 ✓';
+      case false:
+        return '服务器备份成功 ✓，但腾讯云存储桶备份失败';
+      default:
+        return '备份成功：服务器 ✓';
+    }
+  }
+}
+
 /// Network backup via NAS backup server (IPv6 direct, no DNS needed)
 /// Enhanced with retry (exponential backoff) and progress callbacks.
 class NetworkBackupService {
   static const _prefUrl = 'backup_server_url';
   static const _prefToken = 'backup_server_token';
-  static const _defaultUrl = 'https://fbc299.xyz:10443';
+  static const _defaultUrl = 'https://bf.fbc299.xyz';
   // Token 不再硬编码进 APK（H5）：默认空，用户在「设置→备份服务器」填入。
   // 留空时服务端按匿名模式处理，仅做备份文件读写。
   static const _defaultToken = '';
@@ -98,13 +126,13 @@ class NetworkBackupService {
 
   /// Upload backup data with retry and progress callback.
   /// [backupName] is optional custom filename (e.g. "梅花_20260906.json").
-  Future<String> upload(
+  Future<BackupUploadResult> upload(
     String jsonStr, {
     ProgressCallback? onProgress,
     String? backupName,
   }) async {
     try {
-    return _retry(() async {
+    return await _retry<BackupUploadResult>(() async {
       onProgress?.call(0.0);
       debugPrint('[NetworkBackup] 开始上传 (${jsonStr.length} 字节)');
       // Inject custom filename into JSON body
@@ -122,14 +150,24 @@ class NetworkBackupService {
       if (resp.statusCode == 200) {
         final data = json.decode(resp.body);
         onProgress?.call(1.0);
-        debugPrint('[NetworkBackup] 上传成功: ${data['name']}');
-        return data['name'] ?? 'ok';
+        // 服务端未报告 cos_ok（旧版本）时 cosOk 为 null，提示只认服务器结果
+        return BackupUploadResult(
+          name: (data['name'] ?? 'ok').toString(),
+          serverOk: true,
+          cosOk: data['cos_ok'] as bool?,
+        );
       }
-      throw Exception('上传失败: HTTP ${resp.statusCode} - ${resp.body}');
+      // 服务端返回 4xx/5xx：服务器侧失败（存储桶无从谈起）
+      return BackupUploadResult(
+        name: backupName ?? '',
+        serverOk: false,
+        cosOk: null,
+      );
     });
     } catch (e) {
       print('上传备份失败: $e');
-      rethrow;
+      // 网络异常 / 服务端无法访问：服务器侧失败
+      return BackupUploadResult(name: backupName ?? '', serverOk: false, cosOk: null);
     }
   }
 

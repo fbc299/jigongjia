@@ -89,12 +89,13 @@ class _AppShellState extends State<AppShell> {
       final date = DateFormat('yyyyMMdd').format(DateTime.now());
       final projectNames = projects.map((p) => p.name).join('+');
       final backupName = '${projectNames}_$date.json';
-      await service.upload(data, backupName: backupName);
-      await prefs.setString('last_backup_date', today);
-
+      final result = await service.upload(data, backupName: backupName);
+      if (result.serverOk) {
+        await prefs.setString('last_backup_date', today);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('备份成功')),
+          SnackBar(content: Text(result.message)),
         );
       }
     } catch (_) {}

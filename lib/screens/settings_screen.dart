@@ -494,20 +494,22 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
       final backupName = '${projectNames}_$date.json';
 
       final jsonStr = _buildBackupJson();
-      await _service.upload(jsonStr, backupName: backupName);
-      // Upload succeeded — now delete old backups, keep only the latest
-      final list = await _service.list();
-      if (list.length > 1) {
-        // Sort by name (timestamp-based) descending, skip the first (newest)
-        list.sort((a, b) => (b['name'] ?? '').compareTo(a['name'] ?? ''));
-        for (var i = 1; i < list.length; i++) {
-          try { await _service.delete(list[i]['name']); } catch (_) {}
+      final result = await _service.upload(jsonStr, backupName: backupName);
+      if (result.serverOk) {
+        // 服务器成功 — 删除旧备份，只留最新一份
+        final list = await _service.list();
+        if (list.length > 1) {
+          // Sort by name (timestamp-based) descending, skip the first (newest)
+          list.sort((a, b) => (b['name'] ?? '').compareTo(a['name'] ?? ''));
+          for (var i = 1; i < list.length; i++) {
+            try { await _service.delete(list[i]['name']); } catch (_) {}
+          }
         }
+        _backups = await _service.list();
       }
-      _backups = await _service.list();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('备份上传成功 ✓')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.message)));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('上传失败: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('备份失败: $e')));
     }
     if (mounted) setState(() => _loading = false);
   }

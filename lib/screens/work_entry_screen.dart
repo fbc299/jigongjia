@@ -590,7 +590,7 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
   SharedPreferences? _prefs;
   bool _isRest = false;
   double _days = 1.0;
-  double _overtimeHours = 0.0;
+  final _overtimeHoursCtrl = TextEditingController();
   final _dailyRateCtrl = TextEditingController();
   final _overtimeRateCtrl = TextEditingController();
   final _packageDaysCtrl = TextEditingController();
@@ -615,7 +615,7 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
       _workType = r.type;
       _isRest = r.isRest;
       _days = r.days;
-      _overtimeHours = r.overtimeHours;
+      _overtimeHoursCtrl.text = _fmt(r.overtimeHours);
       _dailyRateCtrl.text = _fmt(r.dailyRate);
       _overtimeRateCtrl.text = _fmt(r.overtimeRate);
       _packageDaysCtrl.text = _fmt(r.packageDays);
@@ -633,6 +633,7 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
 
   @override
   void dispose() {
+    _overtimeHoursCtrl.dispose();
     _dailyRateCtrl.dispose();
     _overtimeRateCtrl.dispose();
     _packageDaysCtrl.dispose();
@@ -649,7 +650,7 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
     if (_isRest) return 0;
     switch (_workType) {
       case WorkType.point:
-        return _days * _p(_dailyRateCtrl.text) + _overtimeHours * _p(_overtimeRateCtrl.text);
+        return _days * _p(_dailyRateCtrl.text) + _p(_overtimeHoursCtrl.text) * _p(_overtimeRateCtrl.text);
       case WorkType.packageDay:
         return _p(_packageDaysCtrl.text) * _p(_packageDayRateCtrl.text);
       case WorkType.packageQty:
@@ -691,11 +692,10 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
             if (_workType == WorkType.point)
               TimeInputPanel(
                 days: _days,
-                overtimeHours: _overtimeHours,
+                overtimeHoursCtrl: _overtimeHoursCtrl,
                 dailyRateCtrl: _dailyRateCtrl,
                 overtimeRateCtrl: _overtimeRateCtrl,
                 onDaysChanged: (d) => setState(() => _days = d),
-                onOvertimeHoursChanged: (v) => setState(() => _overtimeHours = v),
                 onAnyFieldChanged: () => setState(() {}),
               ),
             if (_workType == WorkType.packageDay)
@@ -736,7 +736,7 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
       type: _workType,
       days: (_workType == WorkType.point && !_isRest) ? _days : 0,
       dailyRate: (_workType == WorkType.point && !_isRest) ? _p(_dailyRateCtrl.text) : 0,
-      overtimeHours: (_workType == WorkType.point && !_isRest) ? _overtimeHours : 0,
+      overtimeHours: (_workType == WorkType.point && !_isRest) ? _p(_overtimeHoursCtrl.text) : 0,
       overtimeRate: (_workType == WorkType.point && !_isRest) ? _p(_overtimeRateCtrl.text) : 0,
       packageDays: (_workType == WorkType.packageDay && !_isRest) ? _p(_packageDaysCtrl.text) : 0,
       packageDayRate: (_workType == WorkType.packageDay && !_isRest) ? _p(_packageDayRateCtrl.text) : 0,

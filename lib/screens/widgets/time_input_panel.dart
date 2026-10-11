@@ -25,14 +25,13 @@ Widget _numField(
   );
 }
 
-/// Time input panel for point work (days selector + overtime dropdown).
+/// Time input panel for point work (days selector + overtime text input).
 class TimeInputPanel extends StatelessWidget {
   final double days;
-  final double overtimeHours;
+  final TextEditingController overtimeHoursCtrl;
   final TextEditingController dailyRateCtrl;
   final TextEditingController overtimeRateCtrl;
   final ValueChanged<double> onDaysChanged;
-  final ValueChanged<double> onOvertimeHoursChanged;
   final VoidCallback onAnyFieldChanged;
 
   static const _dayOptions = [0.5, 1.0, 1.5, 2.0];
@@ -40,11 +39,10 @@ class TimeInputPanel extends StatelessWidget {
   const TimeInputPanel({
     super.key,
     required this.days,
-    required this.overtimeHours,
+    required this.overtimeHoursCtrl,
     required this.dailyRateCtrl,
     required this.overtimeRateCtrl,
     required this.onDaysChanged,
-    required this.onOvertimeHoursChanged,
     required this.onAnyFieldChanged,
   });
 
@@ -87,28 +85,7 @@ class TimeInputPanel extends StatelessWidget {
           }).toList(),
         ),
         const SizedBox(height: 16),
-        DropdownButtonFormField<double>(
-          value: overtimeHours,
-          decoration: const InputDecoration(
-            labelText: '加班',
-            prefixIcon: Icon(Icons.timelapse),
-          ),
-          items: const [
-            DropdownMenuItem(value: 0.0, child: Text('无加班')),
-            DropdownMenuItem(value: 0.5, child: Text('0.5小时')),
-            DropdownMenuItem(value: 1.0, child: Text('1小时')),
-            DropdownMenuItem(value: 2.0, child: Text('2小时')),
-            DropdownMenuItem(value: 3.0, child: Text('3小时')),
-            DropdownMenuItem(value: 4.0, child: Text('4小时')),
-            DropdownMenuItem(value: 5.0, child: Text('5小时')),
-            DropdownMenuItem(value: 6.0, child: Text('6小时')),
-            DropdownMenuItem(value: 7.0, child: Text('7小时')),
-            DropdownMenuItem(value: 8.0, child: Text('8小时')),
-            DropdownMenuItem(value: 9.0, child: Text('9小时')),
-            DropdownMenuItem(value: 10.0, child: Text('10小时')),
-          ],
-          onChanged: (v) => onOvertimeHoursChanged(v ?? 0),
-        ),
+        _numField(overtimeHoursCtrl, '加班', '小时', onAnyFieldChanged),
         const SizedBox(height: 12),
         _numField(dailyRateCtrl, '日薪', '元/天', onAnyFieldChanged),
         const SizedBox(height: 12),

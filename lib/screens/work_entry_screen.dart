@@ -8,6 +8,7 @@ import 'package:jigongjia/models/work_record.dart';
 import 'package:jigongjia/core/utils/privacy_service.dart';
 import 'package:jigongjia/providers/work_provider.dart';
 import 'package:jigongjia/providers/project_provider.dart';
+import 'package:jigongjia/providers/stats_provider.dart';
 import 'package:jigongjia/screens/widgets/work_type_selector.dart';
 import 'package:jigongjia/screens/widgets/time_input_panel.dart';
 import 'package:jigongjia/screens/widgets/summary_panel.dart';
@@ -40,6 +41,12 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
     super.initState();
     _selectedDate = widget.initialDate ?? DateTime.now();
     _currentMonth = DateTime(_selectedDate.year, _selectedDate.month);
+  }
+
+  bool _isFuture(DateTime d) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return d.isAfter(today);
   }
 
   @override
@@ -75,6 +82,9 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
             children: [
               // Month navigation
               _buildMonthNav(theme),
+              const SizedBox(height: 4),
+              // Monthly statistics panel
+              _buildMonthStats(theme),
               const SizedBox(height: 8),
               // Weekday headers
               _buildWeekdayHeaders(theme),
@@ -170,6 +180,68 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
                 _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
               });
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 当月统计条：出勤/加班/当月工资/未结工资
+  Widget _buildMonthStats(ThemeData theme) {
+    return Consumer<StatsProvider>(
+      builder: (context, statsProv, _) {
+        final s = statsProv.getMonthlyStats(
+          widget.projectId,
+          _currentMonth.year,
+          _currentMonth.month,
+        );
+        final hidden = PrivacyService().isHidden.value;
+        final ovt = s.overtimeHours;
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              _statCell('出勤', '${s.workDays}天', theme),
+              _statCell('加班', ovt > 0 ? '${ovt.toStringAsFixed(ovt == ovt.roundToDouble() ? 0 : 1)}h' : '0', theme),
+              _statCell('当月工资', PrivacyService.format(s.totalIncome, hide: hidden), theme),
+              _statCell('未结工资', PrivacyService.format(s.unpaidAmount, hide: hidden), theme),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _statCell(String label, String value, ThemeData theme) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+          ),
+          const SizedBox(height: 3),
+          FittedBox(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.primary,
+              ),
+            ),
           ),
         ],
       ),
@@ -468,6 +540,13 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
   }
 
   void _openWorkForm(DateTime date, {WorkRecord? existingRecord}) {
+    // 未到日期禁止编辑
+    if (_isFuture(date)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('未到日期，暂不能记工')),
+      );
+      return;
+    }
     Navigator.of(context)
         .push(
       MaterialPageRoute(

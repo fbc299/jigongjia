@@ -135,6 +135,10 @@ class _OverviewSection extends StatelessWidget {
           0,
           (sum, r) => sum + r.totalWage,
         );
+        final totalOvertime = workRecords.fold<double>(
+          0,
+          (sum, r) => sum + r.overtimeHours,
+        );
         final totalBorrowed = borrowProv.getTotalBorrowedByProject(projectId);
         final settlements = settleProv.getSettlementsByProject(projectId);
         final totalSettled = settlements.fold<double>(
@@ -161,10 +165,10 @@ class _OverviewSection extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: StatCard(
-                      icon: Icons.payments,
-                      label: '总工资',
-                      value: PrivacyService.format(totalWage, hide: PrivacyService().isHidden.value),
-                      color: Colors.green,
+                      icon: Icons.access_time,
+                      label: '加班时长',
+                      value: '${totalOvertime.toStringAsFixed(totalOvertime == totalOvertime.roundToDouble() ? 0 : 1)}小时',
+                      color: Colors.orange,
                     ),
                   ),
                 ],
@@ -174,13 +178,26 @@ class _OverviewSection extends StatelessWidget {
                 children: [
                   Expanded(
                     child: StatCard(
+                      icon: Icons.payments,
+                      label: '总工资',
+                      value: PrivacyService.format(totalWage, hide: PrivacyService().isHidden.value),
+                      color: Colors.green,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: StatCard(
                       icon: Icons.money_off,
                       label: '累计借支',
                       value: PrivacyService.format(totalBorrowed, hide: PrivacyService().isHidden.value),
                       color: Colors.orange,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
                   Expanded(
                     child: StatCard(
                       icon: Icons.account_balance_wallet,

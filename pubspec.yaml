@@ -1,7 +1,7 @@
 name: jigongjia
 description: 格格记工 - 工人记工模块
 publish_to: 'none'
-version: 1.1.12+24
+version: 1.1.13+25
 
 environment:
   sdk: ^3.8.1
@@ -36,3 +36,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/fonts/

@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
@@ -7,6 +8,21 @@ import '../../models/work_record.dart';
 class PdfUtil {
   PdfUtil._();
 
+  /// 加载中文字体（Droid Sans Fallback，嵌入 APK assets）。
+  /// pdf 包默认 Helvetica 不含中文字形，不挂中文字体时导出 PDF 中文全乱码。
+  static Future<ByteData> _cjkFont() {
+    return rootBundle.load('assets/fonts/DroidSansFallbackFull.ttf');
+  }
+
+  /// 用中文字体构建 PDF 主题（base/bold 同字体，保证加粗文字也正常）。
+  static Future<pw.ThemeData> _cjkTheme() async {
+    final font = await _cjkFont();
+    return pw.ThemeData.withFont(
+      base: pw.Font.ttf(font),
+      bold: pw.Font.ttf(font),
+    );
+  }
+
   static Future<Uint8List> generateAttendancePdf(
     String projectName,
     int year,
@@ -14,7 +30,7 @@ class PdfUtil {
     List<WorkRecord> records,
   ) async {
     try {
-    final pdf = pw.Document();
+    final pdf = pw.Document(theme: await _cjkTheme());
     final dateFormat = DateFormat('yyyy年MM月');
 
     // Build attendance map: day -> WorkRecord

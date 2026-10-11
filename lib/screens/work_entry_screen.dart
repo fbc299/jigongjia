@@ -78,13 +78,15 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
             recordMap[key] = r;
           }
 
-          return Column(
+          return ValueListenableBuilder<bool>(
+            valueListenable: PrivacyService().isHidden,
+            builder: (context, hidden, _) => Column(
             children: [
               // Month navigation
               _buildMonthNav(theme),
               const SizedBox(height: 4),
               // Monthly statistics panel
-              _buildMonthStats(theme),
+              _buildMonthStats(theme, hidden),
               const SizedBox(height: 8),
               // Weekday headers
               _buildWeekdayHeaders(theme),
@@ -94,8 +96,9 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
                 child: _buildCalendarGrid(theme, recordMap),
               ),
               // Selected day detail
-              _buildSelectedDayPanel(theme, recordMap),
+              _buildSelectedDayPanel(theme, recordMap, hidden),
             ],
+            ),
           );
         },
       ),
@@ -187,7 +190,7 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
   }
 
   /// 当月统计条：出勤/加班/当月工资/未结工资
-  Widget _buildMonthStats(ThemeData theme) {
+  Widget _buildMonthStats(ThemeData theme, bool hidden) {
     return Consumer<StatsProvider>(
       builder: (context, statsProv, _) {
         final s = statsProv.getMonthlyStats(
@@ -195,7 +198,6 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
           _currentMonth.year,
           _currentMonth.month,
         );
-        final hidden = PrivacyService().isHidden.value;
         final ovt = s.overtimeHours;
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -406,7 +408,7 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
     );
   }
 
-  Widget _buildSelectedDayPanel(ThemeData theme, Map<String, WorkRecord> recordMap) {
+  Widget _buildSelectedDayPanel(ThemeData theme, Map<String, WorkRecord> recordMap, bool hidden) {
     final key = '${_selectedDate.year}-${_selectedDate.month}-${_selectedDate.day}';
     final record = recordMap[key];
     final weekday = ['一', '二', '三', '四', '五', '六', '日'][_selectedDate.weekday - 1];
@@ -427,7 +429,7 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
       ),
       child: record == null
           ? _buildEmptyDay(theme, weekday)
-          : _buildRecordDetail(record, theme, weekday),
+          : _buildRecordDetail(record, theme, weekday, hidden),
     );
   }
 
@@ -458,7 +460,7 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
     );
   }
 
-  Widget _buildRecordDetail(WorkRecord record, ThemeData theme, String weekday) {
+  Widget _buildRecordDetail(WorkRecord record, ThemeData theme, String weekday, bool hidden) {
     String desc;
     IconData icon;
     Color color;
@@ -470,11 +472,11 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
     } else if (record.type == WorkType.point) {
       desc = '${record.days}天';
       if (record.overtimeHours > 0) desc += ' + 加班${record.overtimeHours.toStringAsFixed(record.overtimeHours == record.overtimeHours.roundToDouble() ? 0 : 1)}h';
-      desc += ' · ${PrivacyService.format(record.dailyRate, hide: PrivacyService().isHidden.value)}/天';
+      desc += ' · ${PrivacyService.format(record.dailyRate, hide: hidden)}/天';
       icon = Icons.engineering;
       color = theme.colorScheme.primary;
     } else if (record.type == WorkType.packageDay) {
-      desc = '包工 ${record.packageDays}天 · ${PrivacyService.format(record.packageDayRate, hide: PrivacyService().isHidden.value)}/天';
+      desc = '包工 ${record.packageDays}天 · ${PrivacyService.format(record.packageDayRate, hide: hidden)}/天';
       icon = Icons.calendar_view_day;
       color = Colors.teal;
     } else {
@@ -518,7 +520,7 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              record.isRest ? '—' : PrivacyService.format(record.totalWage, hide: PrivacyService().isHidden.value),
+              record.isRest ? '—' : PrivacyService.format(record.totalWage, hide: hidden),
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w400,

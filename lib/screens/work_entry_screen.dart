@@ -380,30 +380,29 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
     }
 
     Color color;
-    String label;
+    String attText;
+    double ovt = record.overtimeHours;
     if (record.type == WorkType.point) {
       color = theme.colorScheme.primary;
-      label = record.days == 0.5 ? '半' : (record.overtimeHours > 0 ? '${record.overtimeHours.toStringAsFixed(record.overtimeHours == record.overtimeHours.roundToDouble() ? 0 : 1)}h' : '');
+      attText = '${record.days.toStringAsFixed(record.days == record.days.roundToDouble() ? 0 : 1)}天';
     } else if (record.type == WorkType.packageDay) {
       color = Colors.teal;
-      label = '包';
+      attText = record.packageDays > 0
+          ? '${record.packageDays.toStringAsFixed(record.packageDays == record.packageDays.roundToDouble() ? 0 : 1)}天·包'
+          : '包';
     } else {
       color = Colors.indigo;
-      label = '量';
+      attText = record.quantity > 0 ? '${record.quantity}·量' : '量';
     }
+    final ovtText = ovt > 0
+        ? ovt.toStringAsFixed(ovt == ovt.roundToDouble() ? 0 : 1)
+        : '';
 
     return Column(
       children: [
-        Container(
-          width: 6,
-          height: 6,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-        ),
-        if (label.isNotEmpty)
-          Text(label, style: TextStyle(fontSize: 9, color: color)),
+        Text(attText, style: TextStyle(fontSize: 9, color: color)),
+        if (ovtText.isNotEmpty)
+          Text('${ovtText}h', style: TextStyle(fontSize: 9, color: Colors.blue)),
       ],
     );
   }

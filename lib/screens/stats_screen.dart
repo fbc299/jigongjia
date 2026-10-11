@@ -241,12 +241,29 @@ class _StatsScreenState extends State<StatsScreen>
             DateTime(_currentMonth.year, _currentMonth.month, day);
         final status = attendance[dateKey];
         final color = _statusColor(status);
-        // 查找当天的记录，获取加班时长
+        // 查找当天的记录，获取出勤工天与加班时长
         final dayRecord = records.where((r) => r.date.day == day && r.date.month == _currentMonth.month && r.date.year == _currentMonth.year).firstOrNull;
         final overtimeHours = dayRecord?.overtimeHours ?? 0;
-        final label = status == AttendanceStatus.overtime && overtimeHours > 0
-            ? '${overtimeHours.toStringAsFixed(overtimeHours == overtimeHours.roundToDouble() ? 0 : 1)}h'
-            : _statusLabel(status);
+        final isRest = dayRecord?.isRest ?? false;
+        // 出勤工天：按工价类型折算
+        double workDaysVal = 0;
+        if (dayRecord != null && !isRest) {
+          switch (dayRecord.type) {
+            case WorkType.point:
+              workDaysVal = dayRecord.days;
+            case WorkType.packageDay:
+              workDaysVal = dayRecord.packageDays;
+            case WorkType.packageQty:
+              workDaysVal = dayRecord.quantity > 0 ? 1.0 : 0.0;
+          }
+        }
+        String attText = '';
+        if (!isRest && workDaysVal > 0) {
+          attText = '${workDaysVal.toStringAsFixed(workDaysVal == workDaysVal.roundToDouble() ? 0 : 1)}天';
+        }
+        final ovtText = overtimeHours > 0
+            ? overtimeHours.toStringAsFixed(overtimeHours == overtimeHours.roundToDouble() ? 0 : 1)
+            : '';
 
         return Container(
           margin: const EdgeInsets.all(2),
@@ -269,11 +286,20 @@ class _StatsScreenState extends State<StatsScreen>
                   color: color ?? Theme.of(context).colorScheme.onSurface,
                 ),
               ),
-              if (label.isNotEmpty)
-                Text(
-                  label,
-                  style: TextStyle(fontSize: 9, color: color),
-                ),
+              if (isRest)
+                const Text('休', style: TextStyle(fontSize: 9, color: Colors.grey))
+              else ...[
+                if (attText.isNotEmpty)
+                  Text(
+                    attText,
+                    style: TextStyle(fontSize: 9, color: Colors.green),
+                  ),
+                if (ovtText.isNotEmpty)
+                  Text(
+                    '${ovtText}h',
+                    style: TextStyle(fontSize: 9, color: Colors.blue),
+                  ),
+              ],
             ],
           ),
         );

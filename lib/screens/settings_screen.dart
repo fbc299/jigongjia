@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -349,6 +351,8 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
   bool _loading = true;
   bool _connected = false;
   List<Map<String, dynamic>> _backups = [];
+  Map<String, dynamic>? _cosLink;
+  Timer? _cosTimer;
 
   @override
   void initState() {
@@ -356,11 +360,21 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
     _init();
   }
 
+  @override
+  void dispose() {
+    _cosTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _init() async {
     await _service.load();
     final ok = await _service.ping();
     if (ok) {
       try { _backups = await _service.list(); } catch (_) {}
+      await _fetchCosLink();
+      // 每 30s 检查一次，临期(<1min)自动换新 presigned 链接
+      _cosTimer?.cancel();
+      _cosTimer = Timer.periodic(const Duration(seconds: 30), (_) => _maybeRefreshCosLink());
     }
     if (mounted) setState(() { _loading = false; _connected = ok; });
   }
@@ -399,6 +413,8 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
           subtitle: Text(_connected ? '当前共 ${_backups.length} 个备份' : '请先连接服务器'),
           onTap: _connected ? _upload : null,
         ),
+        // 腾讯云存储桶预签名下载链接卡片（可复制 + 临期自动刷新）
+        _buildCosLinkCard(),
         if (_backups.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
@@ -440,6 +456,119 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
     if (b < 1024 * 1024) return '${(b / 1024).toStringAsFixed(1)} KB';
     return '${(b / 1024 / 1024).toStringAsFixed(1)} MB';
   }
+
+  // ─── 腾讯云 COS 预签名下载链接 ───
+  Future<void> _fetchCosLink() async {
+    if (!_connected) return;
+    try {
+      final r = await _service.getCosLink();
+      if (mounted) setState(() => _cosLink = r);
+    } catch (_) {}
+  }
+
+  /// 每 30s 由定时器调用：当前链接临期(剩余<60s)才换新，避免频繁换签名。
+  void _maybeRefreshCosLink() {
+    final l = _cosLink;
+    if (l == null) { _fetchCosLink(); return; }
+    if (l['ok'] != true) return;
+    final expiresAt = (l['expires_at'] as num?)?.toInt();
+    if (expiresAt == null) return;
+    final remainSec = expiresAt - DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    if (remainSec < 60) { _fetchCosLink(); }
+  }
+
+  Future<void> _copyCosLink() async {
+    final url = _cosLink?['url'];
+    if (url is! String || url.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: url));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('存储桶下载链接已复制')),
+      );
+    }
+  }
+
+  Widget _buildCosLinkCard() {
+    final l = _cosLink;
+    final ok = l?['ok'] == true;
+    final url = ok ? (l!['url'] as String? ?? '') : '';
+    final name = ok ? (l!['name'] as String? ?? '') : '';
+    final expiresAt = ok ? (l!['expires_at'] as num?)?.toInt() : null;
+    final remainSec =
+        expiresAt == null ? 0 : expiresAt - DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final remainText = remainSec <= 0
+        ? '已过期，点击刷新'
+        : '剩余 ${remainSec ~/ 3600}h ${remainSec % 3600 ~/ 60}m ${remainSec % 60}s';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: Row(
+              children: [
+                Icon(Icons.link, size: 18,
+                    color: ok ? Colors.blue : Colors.grey),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    ok ? '腾讯云存储桶下载：$name' : '腾讯云存储桶下载',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+                Text(
+                  ok ? remainText : '未获取',
+                  style: const TextStyle(
+                      fontSize: 11, color: Colors.grey),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh, size: 18, color: Colors.grey),
+                  tooltip: '刷新链接',
+                  onPressed: _connected ? _fetchCosLink : null,
+                ),
+              ],
+            ),
+          ),
+          if (url.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 6, 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onLongPress: () => _copyCosLink(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 8, horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          url,
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 2,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    icon: const Icon(Icons.copy_all, size: 18),
+                    tooltip: '复制链接',
+                    onPressed: _copyCosLink,
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
 
   void _showSettings() {
     final urlCtrl = TextEditingController(text: _service.serverUrl);

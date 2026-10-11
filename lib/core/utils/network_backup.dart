@@ -171,6 +171,25 @@ class NetworkBackupService {
     }
   }
 
+  /// 获取腾讯云 COS 预签名下载链接（有时限，默认 1 小时）。
+  /// 返回 {ok, name, url, expire_seconds, expires_at}；失败返回 {ok:false, error}。
+  Future<Map<String, dynamic>> getCosLink({String? name, int expire = 3600}) async {
+    try {
+      final qs = <String, String>{'expire': '$expire'};
+      if (name != null) qs['name'] = name;
+      final uri = Uri.parse('$_serverUrl/api/cos-link').replace(queryParameters: qs);
+      final resp = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 15));
+      if (resp.statusCode == 200) {
+        final data = json.decode(resp.body) as Map<String, dynamic>;
+        return data;
+      }
+      return {'ok': false, 'error': 'HTTP ${resp.statusCode}'};
+    } catch (e) {
+      debugPrint('[NetworkBackup] 获取 COS 链接失败: $e');
+      return {'ok': false, 'error': '$e'};
+    }
+  }
+
   /// List backups with retry.
   Future<List<Map<String, dynamic>>> list() async {
     try {

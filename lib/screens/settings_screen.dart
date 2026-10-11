@@ -459,7 +459,23 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
           FilledButton(onPressed: () async {
-            await _service.save(urlCtrl.text.trim(), tokenCtrl.text.trim());
+            final url = urlCtrl.text.trim();
+            // 数据安全：只允许 HTTPS；HTTP 仅限本机回环地址
+            final Uri? uri = Uri.tryParse(url);
+            final isLoopback = uri?.host == '127.0.0.1' ||
+                uri?.host == 'localhost' ||
+                uri?.host == '::1';
+            if (url.isEmpty ||
+                !(uri?.scheme == 'https' ||
+                    (uri?.scheme == 'http' && isLoopback))) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('地址须为 HTTPS（本机测试可用 http://127.0.0.1）'),
+                ),
+              );
+              return;
+            }
+            await _service.save(url, tokenCtrl.text.trim());
             Navigator.pop(ctx);
             setState(() => _loading = true);
             _init();

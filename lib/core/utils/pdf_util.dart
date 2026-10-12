@@ -11,7 +11,7 @@ class PdfUtil {
   /// 加载中文字体（Droid Sans Fallback，嵌入 APK assets）。
   /// pdf 包默认 Helvetica 不含中文字形，不挂中文字体时导出 PDF 中文全乱码。
   static Future<ByteData> _cjkFont() {
-    return rootBundle.load('assets/fonts/DroidSansFallbackFull.ttf');
+    return rootBundle.load('assets/fonts/CJKFont.ttf');
   }
 
   /// 用中文字体构建 PDF 主题（base/bold 同字体，保证加粗文字也正常）。

@@ -26,6 +26,7 @@ class _StatsScreenState extends State<StatsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String? _selectedProjectId;
+  bool _selectedInitialized = false;
   DateTime _currentMonth = DateTime(DateTime.now().year, DateTime.now().month);
 
 
@@ -34,6 +35,18 @@ class _StatsScreenState extends State<StatsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_selectedInitialized) {
+      final projects = context.read<ProjectProvider>().activeProjects;
+      if (projects.isNotEmpty) {
+        _selectedProjectId = projects.first.id;
+        _selectedInitialized = true;
+      }
+    }
   }
 
   @override
@@ -58,10 +71,6 @@ class _StatsScreenState extends State<StatsScreen>
   Widget build(BuildContext context) {
     final projectProvider = context.watch<ProjectProvider>();
     final projects = projectProvider.activeProjects;
-
-    if (_selectedProjectId == null && projects.isNotEmpty) {
-      _selectedProjectId = projects.first.id;
-    }
 
     return Scaffold(
       appBar: AppBar(
@@ -223,6 +232,17 @@ class _StatsScreenState extends State<StatsScreen>
     final totalCells = ((firstWeekday - 1) + daysInMonth);
     final rows = (totalCells / 7).ceil();
 
+    // 预建 日 -> 记录 的映射，避免每个格子都 where 扫一遍（O(n²)->O(n)）。
+    // records 来自 getRecordsByMonth，已按 date DESC 排序，同日多条时
+    // putIfAbsent 保留遍历中先遇到的那条，与原先 firstOrNull 语义一致。
+    final recordByDay = <int, WorkRecord>{};
+    for (final r in records) {
+      final d = r.date;
+      if (d.year == _currentMonth.year && d.month == _currentMonth.month) {
+        recordByDay.putIfAbsent(d.day, () => r);
+      }
+    }
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -242,7 +262,7 @@ class _StatsScreenState extends State<StatsScreen>
         final status = attendance[dateKey];
         final color = _statusColor(status);
         // 查找当天的记录，获取出勤工天与加班时长
-        final dayRecord = records.where((r) => r.date.day == day && r.date.month == _currentMonth.month && r.date.year == _currentMonth.year).firstOrNull;
+        final dayRecord = recordByDay[day];
         final overtimeHours = dayRecord?.overtimeHours ?? 0;
         final isRest = dayRecord?.isRest ?? false;
         // 出勤工天：按工价类型折算

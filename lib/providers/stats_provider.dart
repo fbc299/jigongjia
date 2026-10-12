@@ -95,8 +95,22 @@ class StatsProvider extends ChangeNotifier {
       totalWage: totalWage,
       totalBorrowed: totalBorrowed,
       totalSettled: totalSettled,
-      unpaidWage: totalWage - totalBorrowed - totalSettled,
+      unpaidWage: _rawUnpaid(projectId),
     );
+  }
+
+  /// 未结工资原始口径（不截断）：全时段总工资 - 总借支 - 总已结算。
+  /// 统一在 getProjectSummary 与 getMonthlyStats 间复用，避免两处实现漂移。
+  double _rawUnpaid(String projectId) {
+    final totalWageAll =
+        _workProvider.getRecordsByProject(projectId).fold(
+            0.0, (sum, r) => sum + r.totalWage);
+    final totalBorrowedAll =
+        _borrowProvider.getTotalBorrowedByProject(projectId);
+    final totalSettledAll =
+        _settlementProvider.getSettlementsByProject(projectId).fold(
+            0.0, (sum, s) => sum + s.amount);
+    return totalWageAll - totalBorrowedAll - totalSettledAll;
   }
 
   MonthlyStats getMonthlyStats(
@@ -120,12 +134,7 @@ class StatsProvider extends ChangeNotifier {
     final borrowAmount = monthBorrows.fold(0.0, (sum, r) => sum + r.amount);
 
     // Unpaid = total wage from all project records - total borrowed - total settled
-    final allWorkRecords = _workProvider.getRecordsByProject(projectId);
-    final totalWageAll = allWorkRecords.fold(0.0, (sum, r) => sum + r.totalWage);
-    final totalBorrowedAll = _borrowProvider.getTotalBorrowedByProject(projectId);
-    final settlements = _settlementProvider.getSettlementsByProject(projectId);
-    final totalSettledAll = settlements.fold(0.0, (sum, s) => sum + s.amount);
-    final unpaidAmount = totalWageAll - totalBorrowedAll - totalSettledAll;
+    final unpaidAmount = _rawUnpaid(projectId);
 
     return MonthlyStats(
       workDays: workDays,

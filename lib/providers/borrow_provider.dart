@@ -23,6 +23,9 @@ class BorrowProvider extends ChangeNotifier {
 
   List<BorrowRecord> get records => _records;
 
+  /// 仅供测试注入数据
+  set recordsForTest(List<BorrowRecord> value) => _records = value;
+
   Future<void> loadRecords() async {
     try {
       final db = await DatabaseHelper.instance.database;

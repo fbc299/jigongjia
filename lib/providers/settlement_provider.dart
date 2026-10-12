@@ -23,6 +23,9 @@ class SettlementProvider extends ChangeNotifier {
 
   List<Settlement> get settlements => _settlements;
 
+  /// 仅供测试注入数据
+  set settlementsForTest(List<Settlement> value) => _settlements = value;
+
   Future<void> loadSettlements() async {
     try {
       final db = await DatabaseHelper.instance.database;

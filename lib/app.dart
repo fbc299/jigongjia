@@ -28,6 +28,7 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _currentIndex = 0;
   String? _selectedProjectId;
+  bool _selectedInitialized = false;
 
   @override
   void initState() {
@@ -37,6 +38,18 @@ class _AppShellState extends State<AppShell> {
       PrivacyService().load();
       _promptBackup();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_selectedInitialized) {
+      final projects = context.read<ProjectProvider>().activeProjects;
+      if (projects.isNotEmpty) {
+        _selectedProjectId = projects.first.id;
+        _selectedInitialized = true;
+      }
+    }
   }
 
   /// Prompt user to backup instead of auto-backing up silently.
@@ -104,11 +117,6 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final projects = context.watch<ProjectProvider>().activeProjects;
-
-    // Auto-select first project if none selected
-    if (_selectedProjectId == null && projects.isNotEmpty) {
-      _selectedProjectId = projects.first.id;
-    }
 
     final selectedProject = projects.where((p) => p.id == _selectedProjectId).firstOrNull
         ?? (projects.isNotEmpty ? projects.first : null);

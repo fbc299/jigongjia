@@ -288,7 +288,7 @@ class _StatsScreenState extends State<StatsScreen>
         return Container(
           margin: const EdgeInsets.all(2),
           decoration: BoxDecoration(
-            color: color?.withOpacity(0.2),
+            color: color?.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(8),
             border: status != null
                 ? Border.all(color: color!, width: 1.5)
@@ -342,21 +342,6 @@ class _StatsScreenState extends State<StatsScreen>
     }
   }
 
-  String _statusLabel(AttendanceStatus? status) {
-    switch (status) {
-      case AttendanceStatus.worked:
-        return '出勤';
-      case AttendanceStatus.rest:
-        return '休息';
-      case AttendanceStatus.overtime:
-        return '加班';
-      case AttendanceStatus.absent:
-        return '缺勤';
-      case null:
-        return '';
-    }
-  }
-
   Widget _buildAttendanceLegend() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -378,7 +363,7 @@ class _StatsScreenState extends State<StatsScreen>
           width: 12,
           height: 12,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.3),
+            color: color.withValues(alpha: 0.3),
             shape: BoxShape.circle,
             border: Border.all(color: color, width: 1.5),
           ),

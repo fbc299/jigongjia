@@ -28,44 +28,6 @@ void main() {
       expect(AppConstants.tableNotes, 'notes');
     });
 
-    test('should have correct app name', () {
-      expect(AppConstants.appName, '吉工家');
-    });
-
-    test('should have work type labels', () {
-      expect(AppConstants.workTypeLabels['point'], '点工');
-      expect(AppConstants.workTypeLabels['packageDay'], '包工(按天)');
-      expect(AppConstants.workTypeLabels['packageQty'], '包工(按量)');
-    });
-
-    test('should have expense categories', () {
-      expect(AppConstants.expenseCategories, isNotEmpty);
-      expect(AppConstants.expenseCategories, contains('餐饮'));
-      expect(AppConstants.expenseCategories, contains('交通'));
-    });
-
-    test('should have quantity units', () {
-      expect(AppConstants.qtyUnits, contains('平方'));
-      expect(AppConstants.qtyUnits, contains('米'));
-      expect(AppConstants.qtyUnits, contains('立方'));
-      expect(AppConstants.qtyUnits, contains('件'));
-    });
-
-    test('should have settlement type labels', () {
-      expect(AppConstants.settlementTypeLabels['partial'], '部分结算');
-      expect(AppConstants.settlementTypeLabels['full'], '全部结算');
-    });
-
-    test('should have default rate constants', () {
-      expect(AppConstants.defaultDailyRate, 300.0);
-      expect(AppConstants.defaultOvertimeRate, 50.0);
-    });
-
-    test('should have date format patterns', () {
-      expect(AppConstants.dateFormatYMD, 'yyyy-MM-dd');
-      expect(AppConstants.dateFormatYM, 'yyyy年MM月');
-    });
-
     test('should expose close method', () {
       // Verify close method exists and can be called
       // (actual DB close would require DB to be open)

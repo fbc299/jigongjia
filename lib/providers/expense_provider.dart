@@ -23,6 +23,9 @@ class ExpenseProvider extends ChangeNotifier {
 
   List<Expense> get expenses => _expenses;
 
+  /// 仅供测试注入数据
+  set expensesForTest(List<Expense> value) => _expenses = value;
+
   Future<void> loadExpenses() async {
     try {
       final db = await DatabaseHelper.instance.database;

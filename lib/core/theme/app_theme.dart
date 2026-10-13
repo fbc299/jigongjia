@@ -169,9 +169,9 @@ class AppTheme {
         clipBehavior: Clip.antiAlias,
       ),
       switchTheme: SwitchThemeData(
-        activeColor: accent,
-        thumbColor: WidgetStateProperty.resolveWith((states) =>
-            states.contains(WidgetState.selected) ? Colors.white : Colors.white),
+        trackColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.selected) ? accent : Colors.grey[300]),
+        thumbColor: WidgetStateProperty.all(Colors.white),
       ),
       textTheme: base.textTheme.apply(bodyColor: ink, displayColor: ink).copyWith(
         titleLarge: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),

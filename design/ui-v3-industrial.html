@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>记工 v3 · 工业安全橙</title>
+<!-- Hallmark · scope: component+page · genre: industrial-brutalist · theme: safety-orange (custom)
+     paper: oklch(96% 0.006 80) concrete · accent: oklch(70% 0.21 45) safety-orange · charcoal oklch(15%)
+     display: heavy condensed-grotesk · body: Noto CJK · sharp square corners · hazard-stripe signature
+     states: default · pressed · disabled · focus · contrast: pass -->
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --paper:oklch(96% 0.006 80);--paper-2:oklch(93% 0.008 80);--paper-3:oklch(89% 0.01 80);
+  --ink:oklch(15% 0.01 250);--ink-2:oklch(36% 0.012 250);--ink-3:oklch(56% 0.012 250);
+  --accent:oklch(70% 0.21 45);--accent-deep:oklch(56% 0.185 40);
+  --charcoal:oklch(14% 0.01 250);
+  --ok:oklch(60% 0.15 150);--warn:oklch(80% 0.15 85);--danger:oklch(56% 0.19 22);
+  --f-disp:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --f-num:"Arial Narrow","Oswald","Noto Sans SC",sans-serif;
+  --r:3px;
+}
+body{background:#2a2a2c;font-family:var(--f-disp);color:var(--ink);
+  display:flex;gap:40px;justify-content:center;flex-wrap:wrap;padding:44px;min-height:100vh;overflow-x:clip}
+
+/* hazard stripe */
+.hazard{height:8px;background:repeating-linear-gradient(45deg,var(--accent) 0 14px,var(--charcoal) 14px 28px)}
+
+.phone{width:372px;height:812px;background:var(--paper);border-radius:6px;overflow:hidden;
+  position:relative;display:flex;flex-direction:column;
+  box-shadow:0 0 0 3px #141415,0 22px 44px -14px rgba(0,0,0,.6)}
+.pwrap{display:flex;flex-direction:column;align-items:center;position:relative}
+.pwrap .tag{position:absolute;top:-30px;left:4px;font-family:var(--f-num);font-weight:900;font-size:15px;
+  letter-spacing:.06em;color:#f0a050;display:flex;align-items:center;gap:8px}
+.pwrap .tag .n{background:var(--accent);color:var(--charcoal);padding:2px 7px;font-size:13px}
+
+.statusbar{height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;
+  font-size:13px;font-weight:800;background:var(--charcoal);color:#fff;font-family:var(--f-num)}
+
+.appbar{height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;
+  background:var(--charcoal);color:#fff;position:relative}
+.appbar .t{font-size:18px;font-weight:900;letter-spacing:.02em}
+.appbar .sub{position:absolute;left:16px;bottom:6px;font-size:9px;color:var(--accent);
+  font-family:var(--f-num);letter-spacing:.14em;font-weight:700}
+.appbar .act{width:34px;height:34px;border:2px solid #444;display:grid;place-items:center;
+  color:#fff;font-size:15px;border-radius:var(--r)}
+.appbar .t .pick{color:var(--accent);font-size:13px;margin-left:4px}
+
+.body{flex:1;overflow-y:auto;background:var(--paper)}
+.body::-webkit-scrollbar{width:0}
+
+/* bottom nav — charcoal, square orange indicator */
+.bnav{height:66px;background:var(--charcoal);display:flex;padding:0 4px}
+.bnav .item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  color:#8a8a8e;font-size:11px;font-weight:700;position:relative}
+.bnav .item .ic{font-size:20px;line-height:1}
+.bnav .item.active{color:#fff}
+.bnav .item.active::after{content:"";position:absolute;bottom:0;width:100%;height:4px;background:var(--accent)}
+.bnav .item.active .ic{color:var(--accent)}
+
+/* square card */
+.card{background:#fff;border:2px solid var(--charcoal);border-radius:var(--r);padding:14px;margin:12px 14px}
+.card .row{display:flex;align-items:center;gap:12px}
+.card .icbox{width:40px;height:40px;background:var(--charcoal);color:var(--accent);display:grid;place-items:center;
+  font-size:19px;flex:none;border-radius:var(--r)}
+.card .ttl{font-size:17px;font-weight:900}
+.card .sub2{font-size:12px;color:var(--ink-3);margin-top:3px;font-family:var(--f-num);letter-spacing:.03em}
+.card .chev{margin-left:auto;color:var(--ink-3);font-size:18px}
+.card.arch .icbox{background:var(--paper-3);color:var(--ink-3)}
+.card.arch .ttl{color:var(--ink-3)}
+
+/* chips — square, colored left bar */
+.chips{display:flex;gap:8px;margin-top:12px}
+.chip{flex:1;background:var(--paper);border:1.5px solid var(--paper-3);border-left:4px solid var(--ink-3);
+  padding:9px 10px;border-radius:var(--r)}
+.chip .k{font-size:10px;color:var(--ink-3);font-weight:700;font-family:var(--f-num);letter-spacing:.04em}
+.chip .v{font-size:16px;font-weight:900;margin-top:2px;font-family:var(--f-num)}
+.chip.ok{border-left-color:var(--ok)} .chip.ok .v{color:var(--ok)}
+.chip.wrn{border-left-color:var(--warn)} .chip.wrn .v{color:#b47a10}
+.chip.bad{border-left-color:var(--danger)} .chip.bad .v{color:var(--danger)}
+
+/* FAB — square charcoal */
+.fab{position:absolute;right:16px;bottom:88px;height:48px;padding:0 18px;background:var(--accent);
+  color:var(--charcoal);border:2px solid var(--charcoal);border-radius:var(--r);
+  display:flex;align-items:center;gap:7px;font-size:15px;font-weight:900;cursor:pointer;z-index:6;
+  font-family:var(--f-disp);box-shadow:4px 4px 0 var(--charcoal)}
+.fab:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--charcoal)}
+
+/* calendar */
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin:14px 14px 10px}
+.cal-head .m{font-size:18px;font-weight:900;font-family:var(--f-num);letter-spacing:.04em}
+.cal-head .nav{width:30px;height:30px;background:var(--charcoal);color:var(--accent);display:grid;place-items:center;
+  cursor:pointer;font-size:15px;border-radius:var(--r)}
+.mstats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:0 14px 12px}
+.mstats .c{background:#fff;border:1.5px solid var(--paper-3);border-top:3px solid var(--accent);
+  padding:9px 6px;text-align:center;border-radius:var(--r)}
+.mstats .c .k{font-size:9px;color:var(--ink-3);font-weight:700;font-family:var(--f-num);letter-spacing:.05em}
+.mstats .c .v{font-size:15px;font-weight:900;margin-top:3px;font-family:var(--f-num)}
+.mstats .c .v.red{color:var(--danger)}
+.wd{display:grid;grid-template-columns:repeat(7,1fr);margin:0 14px 4px}
+.wd div{text-align:center;font-size:11px;font-weight:900;color:var(--ink-3);font-family:var(--f-num)}
+.wd div.we{color:var(--danger)}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:0 14px}
+.day{aspect-ratio:1;border:1.5px solid var(--paper-3);display:flex;flex-direction:column;align-items:center;
+  justify-content:center;font-size:14px;font-weight:800;font-family:var(--f-num);cursor:pointer;position:relative;background:#fff}
+.day .mark{font-size:8px;margin-top:1px;font-weight:900;font-family:var(--f-disp)}
+.day.we .d{color:var(--danger)}
+.day.today{border:2px solid var(--charcoal)}
+.day.today .d{color:var(--charcoal)}
+.day.sel{background:var(--accent);border-color:var(--accent)}
+.day.sel .d{color:var(--charcoal)}
+.day.sel .mark{color:var(--charcoal)}
+.day.rest .mark{color:var(--warn)} .day.rest{background:#fff6e6}
+.day.work .mark{color:var(--ok)}
+.day.pkg .mark{color:var(--accent-deep)}
+.day.blank{visibility:hidden}
+.legend{display:flex;gap:14px;justify-content:center;margin:10px 0;font-size:10px;color:var(--ink-2);font-weight:700}
+.legend span{display:flex;align-items:center;gap:5px}
+.legend i{width:11px;height:11px;border-radius:2px}
+
+/* day panel */
+.daypanel{margin:0 14px;background:#fff;border:2px solid var(--charcoal);border-radius:var(--r);padding:14px;
+  position:relative}
+.daypanel .h{display:flex;justify-content:space-between;align-items:flex-start}
+.daypanel .l1{font-size:15px;font-weight:900;font-family:var(--f-num)}
+.daypanel .l2{font-size:12px;color:var(--ink-3);margin-top:4px}
+.daypanel .edit{font-size:11px;color:var(--accent-deep);font-weight:900;margin-top:6px;font-family:var(--f-num)}
+.daypanel .amt{font-size:26px;font-weight:900;color:var(--charcoal);font-family:var(--f-num);text-align:right}
+.daypanel .amt small{display:block;font-size:9px;color:var(--ink-3);font-weight:700;font-family:var(--f-disp)}
+
+/* form */
+.seg{display:flex;gap:4px;margin:14px}
+.seg .s{flex:1;text-align:center;padding:11px 0;border:2px solid var(--charcoal);border-radius:var(--r);
+  font-size:13px;font-weight:800;color:var(--ink-2);cursor:pointer;font-family:var(--f-disp);background:#fff}
+.seg .s.on{background:var(--charcoal);color:var(--accent)}
+.rest{display:flex;align-items:center;justify-content:space-between;margin:12px;padding:12px 14px;
+  border:2px solid var(--paper-3);background:#fff;border-radius:var(--r)}
+.rest .t{font-size:15px;font-weight:800}
+.rest .sw{width:46px;height:26px;background:var(--warn);position:relative;border-radius:var(--r)}
+.rest .sw::after{content:"";position:absolute;top:2px;right:2px;width:22px;height:22px;background:#fff;border-radius:var(--r);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.field{background:#fff;border:2px solid var(--charcoal);border-radius:var(--r);padding:14px;margin:10px 14px}
+.field .fl{font-size:11px;color:var(--ink-3);font-weight:900;margin-bottom:8px;font-family:var(--f-num);letter-spacing:.06em;text-transform:uppercase}
+.inp{width:100%;border:2px solid var(--paper-3);border-radius:var(--r);padding:11px 13px;font-size:15px;font-family:var(--f-disp);background:var(--paper)}
+.inp:focus{outline:none;border-color:var(--accent)}
+.two{display:flex;gap:8px}
+.wage{background:var(--charcoal);border-radius:var(--r);padding:16px;margin:14px;display:flex;justify-content:space-between;align-items:center}
+.wage .k{font-size:15px;color:#fff;font-weight:800}
+.wage .v{font-size:30px;font-weight:900;color:var(--accent);font-family:var(--f-num)}
+.btn{background:var(--accent);color:var(--charcoal);border:2px solid var(--charcoal);border-radius:var(--r);
+  padding:14px;font-size:16px;font-weight:900;margin:0 14px;cursor:pointer;font-family:var(--f-disp);
+  box-shadow:4px 4px 0 var(--charcoal);width:calc(100% - 28px);display:flex;align-items:center;justify-content:center;gap:8px}
+.btn:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--charcoal)}
+
+/* stats */
+.tabs{display:flex;gap:3px;margin:14px}
+.tabs .tb{flex:1;text-align:center;padding:9px 2px;border:2px solid var(--charcoal);border-radius:var(--r);
+  font-size:11px;font-weight:800;color:var(--ink-2);background:#fff}
+.tabs .tb.on{background:var(--accent);color:var(--charcoal)}
+.filter{display:flex;align-items:center;gap:8px;margin:0 14px 12px}
+.filter .mf{font-size:15px;font-weight:900;font-family:var(--f-num)}
+.filter .ar{width:28px;height:28px;background:var(--charcoal);color:var(--accent);display:grid;place-items:center;cursor:pointer;font-size:14px;border-radius:var(--r)}
+.filter .pi{flex:1;border:2px solid var(--charcoal);border-radius:var(--r);padding:8px 10px;font-size:13px;font-weight:700;background:#fff;margin-left:6px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 14px}
+.stat{background:#fff;border:2px solid var(--charcoal);border-radius:var(--r);padding:14px}
+.stat .k{font-size:10px;color:var(--ink-3);font-weight:800;font-family:var(--f-num);letter-spacing:.04em}
+.stat .v{font-size:24px;font-weight:900;margin-top:6px;font-family:var(--f-num)}
+.stat .v.a{color:var(--accent-deep)} .stat .v.r{color:var(--danger)} .stat .v.g{color:var(--ok)} .stat .v.o{color:#b47a10}
+.big{background:var(--charcoal);border-radius:var(--r);padding:16px;margin:10px 14px}
+.big .k{font-size:11px;color:#9a9aa0;font-weight:800;font-family:var(--f-num);letter-spacing:.05em}
+.big .v{font-size:34px;font-weight:900;color:var(--accent);margin-top:4px;font-family:var(--f-num)}
+.chart{background:#fff;border:2px solid var(--charcoal);border-radius:var(--r);padding:14px;margin:0 14px}
+.chart .cl{font-size:13px;font-weight:900;margin-bottom:14px;font-family:var(--f-num);letter-spacing:.04em}
+.bars{display:flex;align-items:flex-end;gap:5px;height:140px}
+.bars .b{flex:1;background:var(--accent-deep);border-radius:2px 2px 0 0;position:relative}
+.bars .b.hot{background:var(--accent)}
+.bars .b .val{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--ink);font-weight:900;font-family:var(--f-num)}
+.bars .b .dv{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--ink-3);font-family:var(--f-num)}
+
+/* settings */
+.setsec{font-size:11px;font-weight:900;color:var(--accent-deep);margin:16px 14px 8px;font-family:var(--f-num);letter-spacing:.08em;text-transform:uppercase;
+  display:flex;align-items:center;gap:8px}
+.setsec::after{content:"";flex:1;height:2px;background:var(--charcoal)}
+.setrow{display:flex;align-items:center;gap:12px;background:#fff;border:2px solid var(--charcoal);border-radius:var(--r);padding:13px 15px;margin:8px 14px}
+.setrow .si{width:36px;height:36px;background:var(--charcoal);color:var(--accent);display:grid;place-items:center;flex:none;font-size:17px;border-radius:var(--r)}
+.setrow .st{flex:1}
+.setrow .st .a{font-size:15px;font-weight:800}
+.setrow .st .b{font-size:11px;color:var(--ink-3);margin-top:2px;font-family:var(--f-num)}
+.setrow .chev{color:var(--ink-3);font-size:18px}
+.toggle{width:46px;height:26px;background:var(--accent);position:relative;border:2px solid var(--charcoal);border-radius:var(--r)}
+.toggle::after{content:"";position:absolute;top:1px;right:1px;width:20px;height:20px;background:var(--charcoal);border-radius:2px}
+.note{font-size:11px;color:var(--ink-2);margin:14px;line-height:1.7;font-weight:700}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- 1 · 项目 -->
+<div class="pwrap"><div class="tag"><span class="n">01</span>项目 / PROJECTS</div>
+<div class="phone">
+  <div class="hazard"></div>
+  <div class="statusbar"><span>09:41</span><span>5G · ▮▮▮</span></div>
+  <div class="appbar"><span class="t">格格记工</span><div class="act">☰</div><span class="sub">PROJECT MANAGER</span></div>
+  <div class="body">
+    <div class="card">
+      <div class="row"><div class="icbox">🏗</div>
+        <div style="flex:1"><div class="ttl">XX小区 3号楼</div><div class="sub2">2026-03-01 · ACTIVE</div></div>
+        <span class="chev">›</span></div>
+      <div class="chips">
+        <div class="chip ok"><div class="k">累计</div><div class="v">86天</div></div>
+        <div class="chip wrn"><div class="k">加班</div><div class="v">22.5h</div></div>
+        <div class="chip bad"><div class="k">未发</div><div class="v">¥6,800</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row"><div class="icbox">🧱</div>
+        <div style="flex:1"><div class="ttl">滨江大厦精装</div><div class="sub2">2026-06-15 · ACTIVE</div></div>
+        <span class="chev">›</span></div>
+      <div class="chips">
+        <div class="chip ok"><div class="k">累计</div><div class="v">34天</div></div>
+        <div class="chip wrn"><div class="k">加班</div><div class="v">8h</div></div>
+        <div class="chip bad"><div class="k">未发</div><div class="v">¥2,150</div></div>
+      </div>
+    </div>
+    <div class="card arch">
+      <div class="row"><div class="icbox">📦</div>
+        <div style="flex:1"><div class="ttl">老镇改造</div><div class="sub2">2025 · ARCHIVED</div></div>
+        <span class="chev">›</span></div>
+    </div>
+  </div>
+  <button class="fab">＋ 新建</button>
+  <div class="bnav">
+    <div class="item"><span class="ic">▦</span>记工</div>
+    <div class="item active"><span class="ic">▤</span>项目</div>
+    <div class="item"><span class="ic">▥</span>统计</div>
+    <div class="item"><span class="ic">▣</span>工具</div>
+  </div>
+</div></div>
+
+<!-- 2 · 记工 日历 -->
+<div class="pwrap"><div class="tag"><span class="n">02</span>记工 / CALENDAR</div>
+<div class="phone">
+  <div class="hazard"></div>
+  <div class="statusbar"><span>09:41</span><span>5G · ▮▮▮</span></div>
+  <div class="appbar"><span class="t">XX小区 3号楼<span class="pick">▾</span></span><div class="act">👁</div><span class="sub">WORK ENTRY</span></div>
+  <div class="body">
+    <div class="cal-head"><div class="nav">‹</div><div class="m">2026·08</div><div class="nav">›</div></div>
+    <div class="mstats">
+      <div class="c"><div class="k">出勤</div><div class="v">18天</div></div>
+      <div class="c"><div class="k">加班</div><div class="v">6h</div></div>
+      <div class="c"><div class="k">工资</div><div class="v">¥13.5k</div></div>
+      <div class="c"><div class="k">未结</div><div class="v red">¥6.8k</div></div>
+    </div>
+    <div class="wd"><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div class="we">六</div><div class="we">日</div></div>
+    <div class="cal" id="cal"></div>
+    <div class="legend">
+      <span><i style="background:var(--ok)"></i>出勤</span>
+      <span><i style="background:var(--warn)"></i>休息</span>
+      <span><i style="background:var(--accent)"></i>包工</span>
+    </div>
+    <div class="daypanel">
+      <div class="h"><div>
+        <div class="l1">08/19 · 周三</div>
+        <div class="l2">点工 1天 + 加班2h · ¥450/天</div>
+        <div class="edit">EDIT ›</div></div>
+        <div class="amt">¥540<small>当日工资</small></div></div>
+    </div>
+  </div>
+  <button class="fab" style="width:48px;padding:0;justify-content:center">＋</button>
+  <div class="bnav">
+    <div class="item active"><span class="ic">▦</span>记工</div>
+    <div class="item"><span class="ic">▤</span>项目</div>
+    <div class="item"><span class="ic">▥</span>统计</div>
+    <div class="item"><span class="ic">▣</span>工具</div>
+  </div>
+</div></div>
+
+<!-- 3 · 表单 -->
+<div class="pwrap"><div class="tag"><span class="n">03</span>记工表单 / FORM</div>
+<div class="phone">
+  <div class="hazard"></div>
+  <div class="statusbar"><span>09:41</span><span>5G · ▮▮▮</span></div>
+  <div class="appbar"><div class="act" style="border:none;background:transparent">‹</div>
+    <span class="t">08/19 · 周三</span><div class="act">✕</div><span class="sub">NEW ENTRY</span></div>
+  <div class="body">
+    <div class="seg">
+      <div class="s on">⏱ 点工</div><div class="s">📅 包工·天</div><div class="s">📏 包工·量</div>
+    </div>
+    <div class="rest" style="margin-left:14px;margin-right:14px"><span class="t">休息日</span><div class="sw"></div></div>
+    <div class="field"><div class="fl">出勤 · Attendance</div>
+      <div class="two"><input class="inp" placeholder="工天" value="1"><input class="inp" placeholder="加班 h" value="2"></div></div>
+    <div class="field"><div class="fl">单价 · Rate</div>
+      <div class="two"><input class="inp" placeholder="日薪 ¥" value="450"><input class="inp" placeholder="加班 ¥" value="150"></div></div>
+    <div class="field"><div class="fl">备注 · Note</div>
+      <input class="inp" placeholder="工种、内容、天气…" value="砌墙 · 高温"></div>
+    <div class="wage"><span class="k">工资合计</span><span class="v">¥540</span></div>
+    <button class="btn">记录今天 ▸</button>
+  </div>
+</div></div>
+
+<!-- 4 · 统计 -->
+<div class="pwrap"><div class="tag"><span class="n">04</span>统计 / STATS</div>
+<div class="phone">
+  <div class="hazard"></div>
+  <div class="statusbar"><span>09:41</span><span>5G · ▮▮▮</span></div>
+  <div class="appbar"><span class="t">统计</span><div class="act">👁</div><span class="sub">REPORTS</span></div>
+  <div class="body">
+    <div class="tabs"><div class="tb">考勤</div><div class="tb on">统计</div><div class="tb">流水</div><div class="tb">未结</div></div>
+    <div class="filter"><div class="ar">‹</div><span class="mf">2026·08</span><div class="ar">›</div><input class="pi" value="XX小区 3号楼"></div>
+    <div class="grid2">
+      <div class="stat"><div class="k">总工天</div><div class="v a">18</div></div>
+      <div class="stat"><div class="k">加班时长</div><div class="v o">6.5h</div></div>
+      <div class="stat"><div class="k">总收入</div><div class="v g">¥13,500</div></div>
+      <div class="stat"><div class="k">总借支</div><div class="v r">¥4,200</div></div>
+    </div>
+    <div class="big"><div class="k">未结工资 / UNPAID</div><div class="v">¥6,800</div></div>
+    <div class="chart"><div class="cl">每日工资 · DAILY WAGE</div>
+      <div class="bars">
+        <div class="b hot" style="height:58%"><span class="val">380</span><span class="dv">5</span></div>
+        <div class="b" style="height:38%"><span class="dv">8</span></div>
+        <div class="b hot" style="height:82%"><span class="val">540</span><span class="dv">12</span></div>
+        <div class="b hot" style="height:54%"><span class="dv">15</span></div>
+        <div class="b hot" style="height:70%"><span class="dv">19</span></div>
+        <div class="b hot" style="height:46%"><span class="dv">22</span></div>
+        <div class="b hot" style="height:90%"><span class="val">540</span><span class="dv">25</span></div>
+        <div class="b" style="height:28%"><span class="dv">29</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="bnav">
+    <div class="item"><span class="ic">▦</span>记工</div>
+    <div class="item"><span class="ic">▤</span>项目</div>
+    <div class="item active"><span class="ic">▥</span>统计</div>
+    <div class="item"><span class="ic">▣</span>工具</div>
+  </div>
+</div></div>
+
+<!-- 5 · 工具 -->
+<div class="pwrap"><div class="tag"><span class="n">05</span>工具 / TOOLS</div>
+<div class="phone">
+  <div class="hazard"></div>
+  <div class="statusbar"><span>09:41</span><span>5G · ▮▮▮</span></div>
+  <div class="appbar"><span class="t">工具</span><div class="act">⚙</div><span class="sub">SETTINGS</span></div>
+  <div class="body">
+    <div class="setsec">数据管理</div>
+    <div class="setrow"><div class="si">⇪</div><div class="st"><div class="a">导出备份</div><div class="b">全部数据 → JSON</div></div><span class="chev">›</span></div>
+    <div class="setrow"><div class="si">⇩</div><div class="st"><div class="a">导入备份</div><div class="b">从 JSON 恢复</div></div><span class="chev">›</span></div>
+    <div class="setsec">云端备份</div>
+    <div class="setrow"><div class="si">☁</div><div class="st"><div class="a">备份服务器</div><div class="b">fbc299.xyz · 已连接 · 3 备份</div></div><div class="toggle"></div></div>
+    <div class="setrow"><div class="si">🔗</div><div class="st"><div class="a">COS 存储桶</div><div class="b">剩余 47h 12m · 点击复制</div></div><span class="chev">›</span></div>
+    <div class="setsec">关于</div>
+    <div class="setrow"><div class="si">ℹ</div><div class="st"><div class="a">版本</div><div class="b">v1.1.4</div></div></div>
+    <div class="setrow"><div class="si">👤</div><div class="st"><div class="a">开发者</div><div class="b">格格记工</div></div></div>
+    <p class="note">工地硬朗 · 安全橙。炭黑骨架 + 高亮橙 + 方正硬角。<br>顶部警示斜纹 · 卡片 2px 黑框 · 阴影改硬投影 · 数字粗体压缩。</p>
+  </div>
+  <div class="bnav">
+    <div class="item"><span class="ic">▦</span>记工</div>
+    <div class="item"><span class="ic">▤</span>项目</div>
+    <div class="item"><span class="ic">▥</span>统计</div>
+    <div class="item active"><span class="ic">▣</span>工具</div>
+  </div>
+</div></div>
+
+<script>
+const c=document.getElementById('cal');
+if(c){
+  const start=6; // 2026-08-01 = Saturday
+  const marks={1:'r',2:'w',3:'w',4:'p',5:'w',6:'w',7:'r',8:'w',9:'w',12:'p',13:'w',14:'w',15:'r',16:'w',19:'p',20:'w',21:'w'};
+  const m={};m[19]='p';
+  for(let i=0;i<35;i++){
+    const d=i-start+1;
+    if(d<1||d>31){c.innerHTML+='<div class="day blank"></div>';continue;}
+    const idx=i-start+1;
+    const we=(idx%7===0)||(idx%7===6);
+    const cls=['day'];
+    if(we)cls.push('we');
+    if(d===19)cls.push('today','sel');
+    if(marks[d])cls.push(marks[d]==='r'?'rest':marks[d]==='p'?'pkg':'work');
+    let mk=marks[d]==='r'?'休':marks[d]==='w'?'1天':marks[d]==='p'?'包':'';
+    c.innerHTML+=`<div class="${cls.join(' ')}"><span class="d">${d}</span><span class="mark">${mk}</span></div>`;
+  }
+}
+</script>
+</body>
+</html>

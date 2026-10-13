@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jigongjia/core/theme/app_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -388,7 +389,7 @@ class _SettlementSummary extends StatelessWidget {
           _SummaryRow(
             label: '已结算',
             value: totalSettled,
-            color: Colors.blue[700]!,
+            color: AppTheme.brick!,
           ),
           const SizedBox(height: 10),
           _SummaryRow(

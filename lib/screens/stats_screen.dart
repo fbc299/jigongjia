@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jigongjia/core/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -317,7 +318,7 @@ class _StatsScreenState extends State<StatsScreen>
                 if (ovtText.isNotEmpty)
                   Text(
                     '${ovtText}h',
-                    style: TextStyle(fontSize: 9, color: Colors.blue),
+                    style: TextStyle(fontSize: 9, color: AppTheme.warnAmber),
                   ),
               ],
             ],
@@ -334,7 +335,7 @@ class _StatsScreenState extends State<StatsScreen>
       case AttendanceStatus.rest:
         return Colors.grey;
       case AttendanceStatus.overtime:
-        return Colors.blue;
+        return AppTheme.warnAmber;
       case AttendanceStatus.absent:
         return Colors.red;
       case null:
@@ -348,7 +349,7 @@ class _StatsScreenState extends State<StatsScreen>
       children: [
         _legendDot(Colors.green, '出勤'),
         const SizedBox(width: 16),
-        _legendDot(Colors.blue, '加班'),
+        _legendDot(AppTheme.warnAmber, '加班'),
         const SizedBox(width: 16),
         _legendDot(Colors.grey, '休息'),
       ],
@@ -383,7 +384,7 @@ class _StatsScreenState extends State<StatsScreen>
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _summaryItem('出勤', '$workDays天', Colors.green),
-            _summaryItem('加班', '${totalOvertimeHours.toStringAsFixed(totalOvertimeHours == totalOvertimeHours.roundToDouble() ? 0 : 1)}h', Colors.blue),
+            _summaryItem('加班', '${totalOvertimeHours.toStringAsFixed(totalOvertimeHours == totalOvertimeHours.roundToDouble() ? 0 : 1)}h', AppTheme.warnAmber),
             _summaryItem('休息', '$restDays天', Colors.grey),
             _summaryItem('总工天', '$totalDays天',
                 Theme.of(context).colorScheme.primary),
@@ -498,7 +499,7 @@ class _StatsScreenState extends State<StatsScreen>
                   icon: Icons.access_time,
                   label: '加班时长',
                   value: '${monthlyStats.overtimeHours.toStringAsFixed(1)}h',
-                  color: Colors.blue,
+                  color: AppTheme.warnAmber,
                 ),
               ),
               SizedBox(

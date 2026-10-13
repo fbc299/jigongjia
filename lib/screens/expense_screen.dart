@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jigongjia/core/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:jigongjia/core/utils/privacy_service.dart';
@@ -25,9 +26,9 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
   };
   static const _categoryColors = <String, Color>{
     '吃饭': Colors.orange,
-    '交通': Colors.blue,
-    '住宿': Colors.purple,
-    '其他': Colors.teal,
+    '交通': AppTheme.brick,
+    '住宿': AppTheme.clay,
+    '其他': AppTheme.warnAmber,
   };
 
   void _prevMonth() {

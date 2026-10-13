@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jigongjia/core/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:jigongjia/core/utils/privacy_service.dart';
@@ -336,7 +337,7 @@ class _ProjectCard extends StatelessWidget {
                       _StatChip(
                         icon: Icons.calendar_today,
                         label: '累计 $totalDays 天',
-                        color: Colors.blue,
+                        color: AppTheme.brick,
                       ),
                       const SizedBox(width: 16),
                       _StatChip(

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>记工 v4 · 国风青灰</title>
+<!-- Hallmark · scope: page · genre: editorial-guofeng · theme: da-blue+rice (custom)
+     paper: rice oklch(97% .012 90) · da-blue oklch(32% .06 255) · cinnabar seal oklch(55% .17 25)
+     serif display (Song/Noto Serif) + Noto Sans body · restrained ink-wash, square->soft8 corners
+     states: default·pressed·focus · contrast: pass -->
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --paper:oklch(97% .012 90);--paper2:oklch(94% .016 90);--paper3:oklch(90% .02 90);
+  --ink:oklch(22% .02 250);--ink2:oklch(44% .025 250);--ink3:oklch(62% .02 250);
+  --da:oklch(32% .06 255);--da2:oklch(45% .08 250);--daL:oklch(88% .05 250);
+  --seal:oklch(55% .17 25);--ok:oklch(58% .1 150);--warn:oklch(75% .1 85);--danger:oklch(52% .17 25);
+  --fs:"Noto Serif SC","Songti SC","STSong","SimSun",serif;
+  --fb:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+  --r:8px;
+}
+body{background:#d9d5cc;font-family:var(--fb);color:var(--ink);display:flex;gap:40px;
+  justify-content:center;flex-wrap:wrap;padding:44px;min-height:100vh;overflow-x:clip}
+.phone{width:372px;height:812px;background:var(--paper);border-radius:18px;overflow:hidden;
+  position:relative;display:flex;flex-direction:column;
+  box-shadow:0 0 0 1px rgba(30,30,40,.12),0 24px 48px -18px rgba(40,40,60,.4)}
+.pwrap{display:flex;flex-direction:column;align-items:center;position:relative}
+.pwrap .tag{position:absolute;top:-30px;left:4px;font-family:var(--fs);font-weight:700;font-size:15px;
+  color:var(--da2);letter-spacing:.1em;display:flex;align-items:center;gap:10px}
+.pwrap .tag .seal{background:var(--seal);color:#fff;width:22px;height:22px;display:grid;place-items:center;
+  font-size:12px;border-radius:2px}
+.statusbar{height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;
+  font-size:13px;font-weight:600;color:var(--ink2);background:var(--paper)}
+.appbar{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;
+  background:var(--paper);border-bottom:1px solid var(--paper3);position:relative}
+.appbar .t{font-family:var(--fs);font-size:19px;font-weight:700;color:var(--da)}
+.appbar .sub{position:absolute;left:20px;bottom:5px;font-size:9px;color:var(--ink3);letter-spacing:.28em}
+.appbar .act{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:var(--da2);
+  background:var(--paper2);font-size:15px}
+.body{flex:1;overflow-y:auto;background:var(--paper)}
+.body::-webkit-scrollbar{width:0}
+.bnav{height:70px;background:#fff;border-top:1px solid var(--paper3);display:flex;padding-bottom:8px}
+.bnav .item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  color:var(--ink3);font-size:11px;font-weight:500;font-family:var(--fb);position:relative}
+.bnav .item .ic{font-size:20px}
+.bnav .item.active{color:var(--da)}
+.bnav .item.active .ic{color:var(--da)}
+.bnav .item.active::before{content:"";position:absolute;top:0;width:26px;height:3px;border-radius:3px;background:var(--seal)}
+</style>
+<style>
+/* ink-wash cards */
+.card{background:#fff;border:1px solid var(--paper3);border-radius:var(--r);padding:16px;margin:12px 16px;
+  box-shadow:0 1px 0 rgba(30,30,40,.03)}
+.card .row{display:flex;align-items:center;gap:12px}
+.card .icbox{width:40px;height:40px;border-radius:var(--r);background:var(--daL);color:var(--da);
+  display:grid;place-items:center;font-size:19px;flex:none}
+.card .ttl{font-family:var(--fs);font-size:17px;font-weight:700;color:var(--ink)}
+.card .sub2{font-size:12px;color:var(--ink3);margin-top:3px}
+.card .chev{margin-left:auto;color:var(--ink3)}
+.card.arch .icbox{background:var(--paper2);color:var(--ink3)}
+.card.arch .ttl{color:var(--ink3)}
+/* chips — thin ink underline, seal accent */
+.chips{display:flex;gap:10px;margin-top:14px}
+.chip{flex:1;padding:2px 0}
+.chip .k{font-size:11px;color:var(--ink3);display:flex;align-items:center;gap:4px}
+.chip .v{font-size:17px;font-weight:700;margin-top:4px;font-family:var(--fs)}
+.chip.ok .v{color:var(--ok)} .chip.wrn .v{color:var(--warn)} .chip.bad .v{color:var(--seal)}
+.chip .u{height:2px;background:var(--paper3);border-radius:2px;margin-top:2px}
+.chip.bad .u{background:var(--seal)} .chip.ok .u{background:var(--ok)}
+/* FAB — round seal */
+.fab{position:absolute;right:20px;bottom:96px;height:50px;padding:0 20px;border-radius:25px;
+  background:var(--seal);color:#fff;display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;
+  border:none;cursor:pointer;z-index:6;font-family:var(--fb);box-shadow:0 8px 18px -6px rgba(180,40,30,.5)}
+.fab:active{transform:scale(.97)}
+/* calendar */
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin:14px 16px 10px}
+.cal-head .m{font-family:var(--fs);font-size:18px;font-weight:700;color:var(--da)}
+.cal-head .nav{width:32px;height:32px;border-radius:50%;background:var(--paper2);color:var(--da2);
+  display:grid;place-items:center;cursor:pointer;font-size:14px}
+.mstats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 16px 12px}
+.mstats .c{background:#fff;border:1px solid var(--paper3);border-radius:var(--r);padding:11px 8px;text-align:center}
+.mstats .c .k{font-size:10px;color:var(--ink3)}
+.mstats .c .v{font-size:16px;font-weight:700;margin-top:4px;font-family:var(--fs);color:var(--da)}
+.mstats .c .v.red{color:var(--seal)}
+.wd{display:grid;grid-template-columns:repeat(7,1fr);margin:0 16px 6px}
+.wd div{text-align:center;font-size:12px;color:var(--ink3);font-family:var(--fs)}
+.wd div.we{color:var(--seal)}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin:0 16px}
+.day{aspect-ratio:1;border:1px solid var(--paper3);border-radius:var(--r);background:#fff;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:14px;font-weight:600;
+  font-family:var(--fs);cursor:pointer;position:relative}
+.day .mark{font-size:9px;margin-top:1px;font-family:var(--fb);font-weight:700}
+.day.we .d{color:var(--seal)}
+.day.today{border:1.5px solid var(--da)}
+.day.today .d{color:var(--da);font-weight:700}
+.day.sel{background:var(--da);border-color:var(--da)}
+.day.sel .d{color:#fff}
+.day.sel .mark{color:rgba(255,255,255,.85)}
+.day.rest{background:#fbf3e4}.day.rest .mark{color:var(--warn)}
+.day.work .mark{color:var(--ok)}
+.day.pkg .mark{color:var(--da2)}
+.day.blank{visibility:hidden}
+.legend{display:flex;gap:14px;justify-content:center;margin:12px 0;font-size:11px;color:var(--ink2)}
+.legend span{display:flex;align-items:center;gap:5px}
+.legend i{width:10px;height:10px;border-radius:3px}
+.daypanel{margin:0 16px;background:#fff;border:1px solid var(--paper3);border-radius:var(--r);padding:16px}
+.daypanel .h{display:flex;justify-content:space-between;align-items:flex-start}
+.daypanel .l1{font-family:var(--fs);font-size:15px;font-weight:700;color:var(--ink)}
+.daypanel .l2{font-size:12px;color:var(--ink3);margin-top:4px}
+.daypanel .edit{font-size:11px;color:var(--da2);font-weight:700;margin-top:6px}
+.daypanel .amt{font-family:var(--fs);font-size:26px;font-weight:700;color:var(--da);text-align:right}
+.daypanel .amt small{display:block;font-size:9px;color:var(--ink3);font-weight:500;font-family:var(--fb)}
+/* form */
+.seg{display:flex;gap:6px;margin:14px 16px}
+.seg .s{flex:1;text-align:center;padding:10px 0;border:1px solid var(--paper3);border-radius:var(--r);
+  font-size:13px;color:var(--ink2);cursor:pointer;font-weight:600;background:#fff}
+.seg .s.on{background:var(--da);color:#fff;border-color:var(--da)}
+.rest{display:flex;align-items:center;justify-content:space-between;margin:12px 16px;padding:13px 15px;
+  background:#fff;border:1px solid var(--paper3);border-radius:var(--r)}
+.rest .t{font-size:15px;font-weight:600}
+.rest .sw{width:44px;height:24px;border-radius:12px;background:var(--warn);position:relative}
+.rest .sw::after{content:"";position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:#fff}
+.field{background:#fff;border:1px solid var(--paper3);border-radius:var(--r);padding:14px;margin:10px 16px}
+.field .fl{font-size:11px;color:var(--ink3);font-weight:700;margin-bottom:8px;letter-spacing:.05em}
+.inp{width:100%;border:1px solid var(--paper3);border-radius:var(--r);padding:11px 13px;font-size:15px;
+  font-family:var(--fb);background:var(--paper)}
+.inp:focus{outline:none;border-color:var(--da)}
+.two{display:flex;gap:8px}
+.wage{background:var(--da);border-radius:var(--r);padding:16px;margin:14px 16px;display:flex;
+  justify-content:space-between;align-items:center}
+.wage .k{font-size:15px;color:rgba(255,255,255,.9);font-weight:600}
+.wage .v{font-family:var(--fs);font-size:28px;font-weight:700;color:#fff}
+.btn{background:var(--da);color:#fff;border:none;border-radius:var(--r);padding:14px;font-size:16px;font-weight:700;
+  margin:0 16px;cursor:pointer;font-family:var(--fb);width:calc(100% - 32px);display:flex;align-items:center;
+  justify-content:center;gap:8px}
+.btn:active{opacity:.92}
+/* stats */
+.tabs{display:flex;gap:5px;margin:14px 16px}
+.tabs .tb{flex:1;text-align:center;padding:9px 2px;font-size:12px;font-weight:600;color:var(--ink2);
+  border-bottom:2px solid transparent}
+.tabs .tb.on{color:var(--da);border-bottom-color:var(--seal)}
+.filter{display:flex;align-items:center;gap:10px;margin:0 16px 12px}
+.filter .mf{font-family:var(--fs);font-size:15px;font-weight:700;color:var(--da)}
+.filter .ar{width:30px;height:30px;border-radius:50%;background:var(--paper2);color:var(--da2);
+  display:grid;place-items:center;cursor:pointer;font-size:14px}
+.filter .pi{flex:1;border:1px solid var(--paper3);border-radius:var(--r);padding:9px 11px;font-size:13px;
+  font-weight:600;background:#fff;margin-left:6px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 16px}
+.stat{background:#fff;border:1px solid var(--paper3);border-radius:var(--r);padding:14px}
+.stat .k{font-size:11px;color:var(--ink3);font-weight:600}
+.stat .v{font-family:var(--fs);font-size:24px;font-weight:700;margin-top:6px}
+.stat .v.a{color:var(--da)} .stat .v.r{color:var(--seal)} .stat .v.g{color:var(--ok)} .stat .v.o{color:var(--warn)}
+.big{background:var(--da);border-radius:var(--r);padding:16px;margin:10px 16px}
+.big .k{font-size:11px;color:rgba(255,255,255,.8);letter-spacing:.05em}
+.big .v{font-family:var(--fs);font-size:32px;font-weight:700;color:#fff;margin-top:4px}
+.chart{background:#fff;border:1px solid var(--paper3);border-radius:var(--r);padding:16px;margin:0 16px}
+.chart .cl{font-size:13px;font-weight:700;margin-bottom:14px;color:var(--ink)}
+.bars{display:flex;align-items:flex-end;gap:6px;height:140px}
+.bars .b{flex:1;background:var(--daL);border-radius:3px;position:relative}
+.bars .b.hot{background:var(--da)}
+.bars .b .val{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--ink2);font-weight:700}
+.bars .b .dv{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--ink3)}
+/* settings */
+.setsec{font-size:12px;font-weight:700;color:var(--da2);margin:16px 16px 8px;letter-spacing:.1em;
+  display:flex;align-items:center;gap:10px}
+.setsec::before{content:"";width:6px;height:6px;background:var(--seal);border-radius:1px}
+.setsec::after{content:"";flex:1;height:1px;background:var(--paper3)}
+.setrow{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--paper3);border-radius:var(--r);
+  padding:13px 15px;margin:8px 16px}
+.setrow .si{width:36px;height:36px;background:var(--daL);color:var(--da);display:grid;place-items:center;
+  flex:none;font-size:16px;border-radius:var(--r)}
+.setrow .st{flex:1}
+.setrow .st .a{font-size:15px;font-weight:600}
+.setrow .st .b{font-size:11px;color:var(--ink3);margin-top:2px}
+.setrow .chev{color:var(--ink3)}
+.toggle{width:44px;height:24px;border-radius:12px;background:var(--da);position:relative}
+.toggle::after{content:"";position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:#fff}
+.note{font-size:11px;color:var(--ink2);margin:14px;line-height:1.7;font-weight:500}
+/* seal stamp on empty */
+.stamp{position:absolute;bottom:26px;right:24px;width:52px;height:52px;border:2px solid var(--seal);
+  border-radius:50%;display:grid;place-items:center;color:var(--seal);font-family:var(--fs);font-size:15px;
+  font-weight:700;opacity:.8;transform:rotate(-8deg)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head><body>
+
+<!-- 1 · 项目 -->
+<div class="pwrap"><div class="tag"><span class="seal">印</span>项目 · 工程</div>
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span>5G · 100%</span></div>
+  <div class="appbar"><span class="t">格格记工</span><div class="act">≡</div><span class="sub">PROJ · 工程</span></div>
+  <div class="body">
+    <div class="card"><div class="row"><div class="icbox">㕮</div>
+      <div style="flex:1"><div class="ttl">XX小区 3号楼</div><div class="sub2">2026-03-01 · 进行中</div></div>
+      <span class="chev">›</span></div>
+      <div class="chips">
+        <div class="chip ok"><span class="k">累计</span><div class="u"></div><div class="v">86 天</div></div>
+        <div class="chip wrn"><span class="k">加班</span><div class="u"></div><div class="v">22.5 h</div></div>
+        <div class="chip bad"><span class="k">未发</span><div class="u"></div><div class="v">¥6,800</div></div>
+      </div></div>
+    <div class="card"><div class="row"><div class="icbox">▦</div>
+      <div style="flex:1"><div class="ttl">滨江大厦精装</div><div class="sub2">2026-06-15 · 进行中</div></div>
+      <span class="chev">›</span></div>
+      <div class="chips">
+        <div class="chip ok"><span class="k">累计</span><div class="u"></div><div class="v">34 天</div></div>
+        <div class="chip wrn"><span class="k">加班</span><div class="u"></div><div class="v">8 h</div></div>
+        <div class="chip bad"><span class="k">未发</span><div class="u"></div><div class="v">¥2,150</div></div>
+      </div></div>
+    <div class="card arch"><div class="row"><div class="icbox">▣</div>
+      <div style="flex:1"><div class="ttl">老镇改造</div><div class="sub2">2025 · 已归档</div></div>
+      <span class="chev">›</span></div></div>
+  </div>
+  <div class="stamp">记</div>
+  <button class="fab">＋ 新建工程</button>
+  <div class="bnav">
+    <div class="item"><span class="ic">☰</span>记工</div>
+    <div class="item active"><span class="ic">▦</span>项目</div>
+    <div class="item"><span class="ic">▤</span>统计</div>
+    <div class="item"><span class="ic">⚙</span>工具</div>
+  </div>
+</div></div>
+
+<!-- 2 · 记工 日历 -->
+<div class="pwrap"><div class="tag"><span class="seal">印</span>记工 · 日历</div>
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span>5G · 100%</span></div>
+  <div class="appbar"><span class="t">XX小区 3号楼 <span style="font-size:12px;color:var(--ink3)">▾</span></span>
+    <div class="act">◉</div><span class="sub">WORK · 工</span></div>
+  <div class="body">
+    <div class="cal-head"><div class="nav">‹</div><div class="m">二〇二六年 八月</div><div class="nav">›</div></div>
+    <div class="mstats">
+      <div class="c"><div class="k">出勤</div><div class="v">18 天</div></div>
+      <div class="c"><div class="k">加班</div><div class="v">6 h</div></div>
+      <div class="c"><div class="k">工资</div><div class="v">¥13.5k</div></div>
+      <div class="c"><div class="k">未结</div><div class="v red">¥6.8k</div></div>
+    </div>
+    <div class="wd"><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div class="we">六</div><div class="we">日</div></div>
+    <div class="cal" id="cal"></div>
+    <div class="legend"><span><i style="background:var(--ok)"></i>出勤</span>
+      <span><i style="background:var(--warn)"></i>休息</span>
+      <span><i style="background:var(--da2)"></i>包工</span></div>
+    <div class="daypanel"><div class="h"><div>
+      <div class="l1">八月十九 · 周三</div><div class="l2">点工 1 天 + 加班 2h · ¥450/天</div>
+      <div class="edit">改 ▸</div></div>
+      <div class="amt">¥540<small>当日工资</small></div></div></div>
+  </div>
+  <button class="fab" style="width:50px;padding:0;justify-content:center">＋</button>
+  <div class="bnav">
+    <div class="item active"><span class="ic">☰</span>记工</div>
+    <div class="item"><span class="ic">▦</span>项目</div>
+    <div class="item"><span class="ic">▤</span>统计</div>
+    <div class="item"><span class="ic">⚙</span>工具</div>
+  </div>
+</div></div>
+
+<!-- 3 · 表单 -->
+<div class="pwrap"><div class="tag"><span class="seal">印</span>记工 · 录</div>
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span>5G · 100%</span></div>
+  <div class="appbar"><div class="act" style="border:none;background:transparent">‹</div>
+    <span class="t">八月十九 · 周三</span><div class="act">✕</div><span class="sub">NEW · 新录</span></div>
+  <div class="body">
+    <div class="seg"><div class="s on">点工</div><div class="s">包工·天</div><div class="s">包工·量</div></div>
+    <div class="rest"><span class="t">休息日</span><div class="sw"></div></div>
+    <div class="field"><div class="fl">出勤</div>
+      <div class="two"><input class="inp" placeholder="工天" value="1"><input class="inp" placeholder="加班 h" value="2"></div></div>
+    <div class="field"><div class="fl">单价</div>
+      <div class="two"><input class="inp" placeholder="日薪 ¥" value="450"><input class="inp" placeholder="加班 ¥" value="150"></div></div>
+    <div class="field"><div class="fl">备注</div>
+      <input class="inp" placeholder="工种 · 内容 · 天气" value="砌墙 · 高温"></div>
+    <div class="wage"><span class="k">工资合计</span><span class="v">¥540</span></div>
+    <button class="btn">录入本日</button>
+  </div>
+</div></div>
+
+<!-- 4 · 统计 -->
+<div class="pwrap"><div class="tag"><span class="seal">印</span>统计 · 账</div>
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span>5G · 100%</span></div>
+  <div class="appbar"><span class="t">统计</span><div class="act">◉</div><span class="sub">STATS · 账</span></div>
+  <div class="body">
+    <div class="tabs"><div class="tb">考勤</div><div class="tb on">记工</div><div class="tb">流水</div><div class="tb">未结</div></div>
+    <div class="filter"><div class="ar">‹</div><span class="mf">二〇二六年 八月</span><div class="ar">›</div>
+      <input class="pi" value="XX小区 3号楼"></div>
+    <div class="grid2">
+      <div class="stat"><div class="k">总工天</div><div class="v a">18</div></div>
+      <div class="stat"><div class="k">加班时长</div><div class="v o">6.5 h</div></div>
+      <div class="stat"><div class="k">总收入</div><div class="v g">¥13,500</div></div>
+      <div class="stat"><div class="k">总借支</div><div class="v r">¥4,200</div></div>
+    </div>
+    <div class="big"><div class="k">未结工资</div><div class="v">¥6,800</div></div>
+    <div class="chart"><div class="cl">每日工资</div>
+      <div class="bars">
+        <div class="b hot" style="height:58%"><span class="val">380</span><span class="dv">5</span></div>
+        <div class="b" style="height:38%"><span class="dv">8</span></div>
+        <div class="b hot" style="height:82%"><span class="val">540</span><span class="dv">12</span></div>
+        <div class="b hot" style="height:54%"><span class="dv">15</span></div>
+        <div class="b hot" style="height:70%"><span class="dv">19</span></div>
+        <div class="b hot" style="height:46%"><span class="dv">22</span></div>
+        <div class="b hot" style="height:90%"><span class="val">540</span><span class="dv">25</span></div>
+        <div class="b" style="height:28%"><span class="dv">29</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="bnav">
+    <div class="item"><span class="ic">☰</span>记工</div>
+    <div class="item"><span class="ic">▦</span>项目</div>
+    <div class="item active"><span class="ic">▤</span>统计</div>
+    <div class="item"><span class="ic">⚙</span>工具</div>
+  </div>
+</div></div>
+
+<!-- 5 · 工具 -->
+<div class="pwrap"><div class="tag"><span class="seal">印</span>工具 · 设</div>
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span>5G · 100%</span></div>
+  <div class="appbar"><span class="t">工具</span><div class="act">⚙</div><span class="sub">SET · 设</span></div>
+  <div class="body">
+    <div class="setsec">数据管理</div>
+    <div class="setrow"><div class="si">⇪</div><div class="st"><div class="a">导出备份</div><div class="b">全部数据 → JSON</div></div><span class="chev">›</span></div>
+    <div class="setrow"><div class="si">⇩</div><div class="st"><div class="a">导入备份</div><div class="b">从 JSON 恢复</div></div><span class="chev">›</span></div>
+    <div class="setsec">云端备份</div>
+    <div class="setrow"><div class="si">☁</div><div class="st"><div class="a">备份服务器</div><div class="b">fbc299.xyz · 已连接 · 3 份</div></div><div class="toggle"></div></div>
+    <div class="setrow"><div class="si">◈</div><div class="st"><div class="a">COS 存储桶</div><div class="b">剩余 47h 12m · 复制链接</div></div><span class="chev">›</span></div>
+    <div class="setsec">关于</div>
+    <div class="setrow"><div class="si">ℹ</div><div class="st"><div class="a">版本</div><div class="b">v1.1.4</div></div></div>
+    <div class="setrow"><div class="si">〇</div><div class="st"><div class="a">开发者</div><div class="b">格格记工</div></div></div>
+    <p class="note">国风青灰 · 黛蓝 + 宣纸白 + 朱砂印。宋体标题 · 克制留白 · 圆角柔化 · 数字黛蓝、未结朱砂。</p>
+  </div>
+  <div class="bnav">
+    <div class="item"><span class="ic">☰</span>记工</div>
+    <div class="item"><span class="ic">▦</span>项目</div>
+    <div class="item"><span class="ic">▤</span>统计</div>
+    <div class="item active"><span class="ic">⚙</span>工具</div>
+  </div>
+</div></div>
+
+<script>
+const c=document.getElementById('cal');
+if(c){const start=6;const marks={1:'r',2:'w',3:'w',4:'p',5:'w',6:'w',7:'r',8:'w',9:'w',12:'p',13:'w',14:'w',15:'r',16:'w',19:'p',20:'w',21:'w'};
+  for(let i=0;i<35;i++){const d=i-start+1;if(d<1||d>31){c.innerHTML+='<div class="day blank"></div>';continue;}
+    const idx=i-start+1;const we=(idx%7===0)||(idx%7===6);const cls=['day'];if(we)cls.push('we');
+    if(d===19)cls.push('today','sel');if(marks[d])cls.push(marks[d]==='r'?'rest':marks[d]==='p'?'pkg':'work');
+    let mk=marks[d]==='r'?'休':marks[d]==='w'?'工':marks[d]==='p'?'包':'';
+    c.innerHTML+=`<div class="${cls.join(' ')}"><span class="d">${d}</span><span class="mark">${mk}</span></div>`;}
+}
+</script>
+</body></html>

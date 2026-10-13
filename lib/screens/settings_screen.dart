@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:jigongjia/core/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -514,7 +515,7 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
             child: Row(
               children: [
                 Icon(Icons.link, size: 18,
-                    color: ok ? Colors.blue : Colors.grey),
+                    color: ok ? AppTheme.brick : Colors.grey),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(

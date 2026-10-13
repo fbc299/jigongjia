@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jigongjia/core/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
@@ -385,12 +386,12 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
       color = theme.colorScheme.primary;
       attText = '${record.days.toStringAsFixed(record.days == record.days.roundToDouble() ? 0 : 1)}天';
     } else if (record.type == WorkType.packageDay) {
-      color = Colors.teal;
+      color = AppTheme.warnAmber;
       attText = record.packageDays > 0
           ? '${record.packageDays.toStringAsFixed(record.packageDays == record.packageDays.roundToDouble() ? 0 : 1)}天·包'
           : '包';
     } else {
-      color = Colors.indigo;
+      color = AppTheme.clay;
       attText = record.quantity > 0 ? '${record.quantity}·量' : '量';
     }
     final ovtText = ovt > 0
@@ -401,7 +402,7 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
       children: [
         Text(attText, style: TextStyle(fontSize: 9, color: color)),
         if (ovtText.isNotEmpty)
-          Text('${ovtText}h', style: TextStyle(fontSize: 9, color: Colors.blue)),
+          Text('${ovtText}h', style: TextStyle(fontSize: 9, color: AppTheme.warnAmber)),
       ],
     );
   }
@@ -476,11 +477,11 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
     } else if (record.type == WorkType.packageDay) {
       desc = '包工 ${record.packageDays}天 · ${PrivacyService.format(record.packageDayRate, hide: hidden)}/天';
       icon = Icons.calendar_view_day;
-      color = Colors.teal;
+      color = AppTheme.warnAmber;
     } else {
       desc = '包工 ${record.quantity}${record.qtyUnit} · ¥${record.qtyUnitPrice}/${record.qtyUnit}';
       icon = Icons.straighten;
-      color = Colors.indigo;
+      color = AppTheme.clay;
     }
 
     return Row(

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:jigongjia/core/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:jigongjia/core/utils/privacy_service.dart';
 
@@ -158,7 +159,7 @@ class _OverviewSection extends StatelessWidget {
                       icon: Icons.calendar_today,
                       label: '累计工天',
                       value: totalDays.toStringAsFixed(1),
-                      color: Colors.blue,
+                      color: AppTheme.brick,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -231,7 +232,7 @@ class _QuickActions extends StatelessWidget {
             child: _ActionChip(
               icon: Icons.edit_note,
               label: '记工',
-              color: Colors.blue,
+              color: AppTheme.brick,
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
@@ -267,7 +268,7 @@ class _QuickActions extends StatelessWidget {
             child: _ActionChip(
               icon: Icons.camera_alt,
               label: '拍照',
-              color: Colors.purple,
+              color: AppTheme.clay,
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
@@ -388,11 +389,11 @@ class _DiaryCard extends StatelessWidget {
     } else if (record.type == WorkType.packageDay) {
       mainText = '包工 ${record.packageDays}天';
       icon = Icons.calendar_view_day;
-      iconColor = Colors.teal;
+      iconColor = AppTheme.warnAmber;
     } else {
       mainText = '包工 ${record.quantity}${record.qtyUnit}';
       icon = Icons.straighten;
-      iconColor = Colors.indigo;
+      iconColor = AppTheme.clay;
     }
 
     return GestureDetector(

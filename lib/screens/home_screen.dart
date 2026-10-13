@@ -400,8 +400,9 @@ class _ProjectCard extends StatelessWidget {
   }
 
   void _confirmDelete(BuildContext context, Project project) {
+    final outerCtx = context;
     showDialog(
-      context: context,
+      context: outerCtx,
       builder: (ctx) => AlertDialog(
         title: const Text('确认删除'),
         content: Text('确定要删除项目「${project.name}」吗？\n该项目下的所有记录也将被删除，此操作不可撤销。'),
@@ -412,12 +413,22 @@ class _ProjectCard extends StatelessWidget {
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
+            onPressed: () async {
               Navigator.of(ctx).pop();
-              context.read<ProjectProvider>().deleteProject(project.id);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('项目已删除')),
-              );
+              try {
+                await outerCtx.read<ProjectProvider>().deleteProject(project.id);
+                if (outerCtx.mounted) {
+                  ScaffoldMessenger.of(outerCtx).showSnackBar(
+                    const SnackBar(content: Text('项目已删除')),
+                  );
+                }
+              } catch (e) {
+                if (outerCtx.mounted) {
+                  ScaffoldMessenger.of(outerCtx).showSnackBar(
+                    SnackBar(content: Text('删除失败: $e')),
+                  );
+                }
+              }
             },
             child: const Text('删除'),
           ),

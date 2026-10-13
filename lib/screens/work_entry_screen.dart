@@ -779,18 +779,30 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
   }
 
   void _delete() {
+    final outerCtx = context;
     showDialog(
-      context: context,
+      context: outerCtx,
       builder: (ctx) => AlertDialog(
         title: const Text('删除'),
         content: const Text('确定删除这条记录？'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
           TextButton(
-            onPressed: () {
-              context.read<WorkProvider>().deleteRecord(widget.existingRecord!.id);
-              Navigator.pop(ctx);
-              Navigator.pop(context);
+            onPressed: () async {
+              try {
+                await outerCtx.read<WorkProvider>().deleteRecord(
+                    widget.existingRecord!.id);
+              } catch (e) {
+                if (outerCtx.mounted) {
+                  ScaffoldMessenger.of(outerCtx).showSnackBar(
+                    SnackBar(content: Text('删除失败: $e')),
+                  );
+                }
+                return;
+              }
+              if (!outerCtx.mounted) return;
+              Navigator.pop(outerCtx);
+              Navigator.pop(outerCtx);
             },
             child: const Text('删除', style: TextStyle(color: Colors.red)),
           ),

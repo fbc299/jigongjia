@@ -539,15 +539,18 @@ class _BorrowRecordsTab extends StatelessWidget {
                   ),
                 );
               },
-              onDismissed: (_) {
+              onDismissed: (_) async {
+                final outerCtx = context;
                 try {
-                  context.read<BorrowProvider>().deleteRecord(record.id);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('借支记录已删除')),
-                  );
+                  await outerCtx.read<BorrowProvider>().deleteRecord(record.id);
+                  if (outerCtx.mounted) {
+                    ScaffoldMessenger.of(outerCtx).showSnackBar(
+                      const SnackBar(content: Text('借支记录已删除')),
+                    );
+                  }
                 } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                  if (outerCtx.mounted) {
+                    ScaffoldMessenger.of(outerCtx).showSnackBar(
                       SnackBar(content: Text('操作失败: $e')),
                     );
                   }

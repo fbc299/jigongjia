@@ -145,15 +145,18 @@ class _SettlementScreenState extends State<SettlementScreen> {
           ),
         );
       },
-      onDismissed: (_) {
+      onDismissed: (_) async {
+        final outerCtx = context;
         try {
-          context.read<SettlementProvider>().deleteSettlement(settlement.id);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('结算记录已删除')),
-          );
+          await outerCtx.read<SettlementProvider>().deleteSettlement(settlement.id);
+          if (outerCtx.mounted) {
+            ScaffoldMessenger.of(outerCtx).showSnackBar(
+              const SnackBar(content: Text('结算记录已删除')),
+            );
+          }
         } catch (e) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
+          if (outerCtx.mounted) {
+            ScaffoldMessenger.of(outerCtx).showSnackBar(
               SnackBar(content: Text('操作失败: $e')),
             );
           }

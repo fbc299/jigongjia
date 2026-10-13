@@ -220,11 +220,22 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     return Dismissible(
       key: ValueKey(expense.id),
       direction: DismissDirection.endToStart,
-      onDismissed: (_) {
-        context.read<ExpenseProvider>().deleteExpense(expense.id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('已删除')),
-        );
+      onDismissed: (_) async {
+        final outerCtx = context;
+        try {
+          await outerCtx.read<ExpenseProvider>().deleteExpense(expense.id);
+          if (outerCtx.mounted) {
+            ScaffoldMessenger.of(outerCtx).showSnackBar(
+              const SnackBar(content: Text('已删除')),
+            );
+          }
+        } catch (e) {
+          if (outerCtx.mounted) {
+            ScaffoldMessenger.of(outerCtx).showSnackBar(
+              SnackBar(content: Text('删除失败: $e')),
+            );
+          }
+        }
       },
       background: Container(
         alignment: Alignment.centerRight,

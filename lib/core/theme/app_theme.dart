@@ -131,7 +131,6 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: isLight ? cardWhite : cs.surface,
         indicatorColor: isLight ? brickSoft : const Color(0xFF3A2A20),
-        indicatorSize: 56,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         height: 68,
         iconTheme: WidgetStateProperty.resolveWith((states) => IconThemeData(
@@ -170,8 +169,9 @@ class AppTheme {
         clipBehavior: Clip.antiAlias,
       ),
       switchTheme: SwitchThemeData(
-        activeTrackColor: accent,
-        activeThumbColor: Colors.white,
+        activeColor: accent,
+        thumbColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.selected) ? Colors.white : Colors.white),
       ),
       textTheme: base.textTheme.apply(bodyColor: ink, displayColor: ink).copyWith(
         titleLarge: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),

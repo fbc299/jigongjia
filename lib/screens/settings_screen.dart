@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:jigongjia/core/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
@@ -406,7 +407,7 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
         ListTile(
           leading: Icon(
             _connected ? Icons.cloud_done : Icons.cloud_off,
-            color: _connected ? Colors.green : Colors.red,
+            color: _connected ? AppTheme.okGreen : Colors.red,
           ),
           title: Text(_connected ? '已连接备份服务器' : '未连接'),
           subtitle: Text(_service.serverUrl),
@@ -735,25 +736,44 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
 
 // ===================== About =====================
 
-class _AboutSection extends StatelessWidget {
+class _AboutSection extends StatefulWidget {
   const _AboutSection();
+  @override
+  State<_AboutSection> createState() => _AboutSectionState();
+}
+
+class _AboutSectionState extends State<_AboutSection> {
+  String _version = '…';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) setState(() => _version = 'v${info.version}(${info.buildNumber})');
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       children: [
         ListTile(
-          leading: Icon(Icons.info_outline),
-          title: Text('版本'),
-          subtitle: Text('v1.1.4'),
+          leading: const Icon(Icons.info_outline),
+          title: const Text('版本'),
+          subtitle: Text(_version),
         ),
         ListTile(
-          leading: Icon(Icons.code),
+          leading: const Icon(Icons.code),
           title: Text('开发者'),
           subtitle: Text('格格记工'),
         ),
         ListTile(
-          leading: Icon(Icons.description_outlined),
+          leading: const Icon(Icons.description_outlined),
           title: Text('应用介绍'),
           subtitle: Text('格格记工 - 工人记工记账助手，轻松管理工地考勤、工资、借支和结算'),
         ),

@@ -376,7 +376,7 @@ class _SettlementSummary extends StatelessWidget {
           _SummaryRow(
             label: '总工资',
             value: totalWage,
-            color: Colors.green[700]!,
+            color: AppTheme.okGreen,
           ),
           const SizedBox(height: 10),
           _SummaryRow(

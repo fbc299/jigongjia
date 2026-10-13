@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jigongjia/core/theme/app_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:jigongjia/core/utils/privacy_service.dart';
 
@@ -54,7 +55,7 @@ class RecordTile extends StatelessWidget {
           style: TextStyle(
             fontWeight: FontWeight.w600,
             color: recordType == RecordType.settlement
-                ? Colors.green.shade700
+                ? AppTheme.okGreen
                 : (recordType == RecordType.borrow
                     ? Colors.red.shade700
                     : theme.colorScheme.onSurface),
@@ -94,7 +95,7 @@ class RecordTile extends StatelessWidget {
       case RecordType.borrow:
         return Colors.orange;
       case RecordType.settlement:
-        return Colors.green;
+        return AppTheme.okGreen;
     }
   }
 

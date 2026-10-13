@@ -349,7 +349,7 @@ class _ProjectCard extends StatelessWidget {
                       _StatChip(
                         icon: Icons.attach_money,
                         label: '未发 ${PrivacyService.format(unpaidWage, hide: PrivacyService().isHidden.value)}',
-                        color: unpaidWage > 0 ? Colors.green : Colors.grey,
+                        color: unpaidWage > 0 ? AppTheme.okGreen : Colors.grey,
                       ),
                     ],
                   ),

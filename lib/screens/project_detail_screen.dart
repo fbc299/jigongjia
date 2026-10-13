@@ -181,7 +181,7 @@ class _OverviewSection extends StatelessWidget {
                       icon: Icons.payments,
                       label: '总工资',
                       value: PrivacyService.format(totalWage, hide: PrivacyService().isHidden.value),
-                      color: Colors.green,
+                      color: AppTheme.okGreen,
                     ),
                   ),
                   const SizedBox(width: 12),

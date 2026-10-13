@@ -313,7 +313,7 @@ class _StatsScreenState extends State<StatsScreen>
                 if (attText.isNotEmpty)
                   Text(
                     attText,
-                    style: TextStyle(fontSize: 9, color: Colors.green),
+                    style: TextStyle(fontSize: 9, color: AppTheme.okGreen),
                   ),
                 if (ovtText.isNotEmpty)
                   Text(
@@ -331,7 +331,7 @@ class _StatsScreenState extends State<StatsScreen>
   Color? _statusColor(AttendanceStatus? status) {
     switch (status) {
       case AttendanceStatus.worked:
-        return Colors.green;
+        return AppTheme.okGreen;
       case AttendanceStatus.rest:
         return Colors.grey;
       case AttendanceStatus.overtime:
@@ -347,7 +347,7 @@ class _StatsScreenState extends State<StatsScreen>
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _legendDot(Colors.green, '出勤'),
+        _legendDot(AppTheme.okGreen, '出勤'),
         const SizedBox(width: 16),
         _legendDot(AppTheme.warnAmber, '加班'),
         const SizedBox(width: 16),
@@ -383,7 +383,7 @@ class _StatsScreenState extends State<StatsScreen>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _summaryItem('出勤', '$workDays天', Colors.green),
+            _summaryItem('出勤', '$workDays天', AppTheme.okGreen),
             _summaryItem('加班', '${totalOvertimeHours.toStringAsFixed(totalOvertimeHours == totalOvertimeHours.roundToDouble() ? 0 : 1)}h', AppTheme.warnAmber),
             _summaryItem('休息', '$restDays天', Colors.grey),
             _summaryItem('总工天', '$totalDays天',
@@ -508,7 +508,7 @@ class _StatsScreenState extends State<StatsScreen>
                   icon: Icons.payments,
                   label: '总收入',
                   value: '¥${numberFormat.format(monthlyStats.totalIncome)}',
-                  color: Colors.green,
+                  color: AppTheme.okGreen,
                 ),
               ),
               SizedBox(
@@ -772,7 +772,7 @@ class _StatsScreenState extends State<StatsScreen>
                                     valueColor: Colors.orange),
                 _unpaidRow('已结算',
                                     PrivacyService.format(summary.totalSettled, hide: PrivacyService().isHidden.value),
-                                    valueColor: Colors.green),
+                                    valueColor: AppTheme.okGreen),
                 const Divider(),
                 _unpaidRow(
                                   '未结工资',

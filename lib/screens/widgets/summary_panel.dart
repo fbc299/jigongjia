@@ -39,7 +39,7 @@ class SummaryPanel extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withOpacity(0.06),
+            color: theme.colorScheme.primary.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(

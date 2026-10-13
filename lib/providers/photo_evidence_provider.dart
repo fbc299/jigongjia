@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -33,7 +32,7 @@ class PhotoEvidenceProvider extends ChangeNotifier {
       _photos = maps.map((m) => PhotoEvidence.fromMap(m)).toList();
       notifyListeners();
     } catch (e) {
-      print('加载照片记录失败: $e');
+      debugPrint('加载照片记录失败: $e');
       rethrow;
     }
   }
@@ -59,7 +58,7 @@ class PhotoEvidenceProvider extends ChangeNotifier {
       _photos.insert(0, photo);
       notifyListeners();
     } catch (e) {
-      print('添加照片记录失败: $e');
+      debugPrint('添加照片记录失败: $e');
       rethrow;
     }
   }
@@ -75,7 +74,7 @@ class PhotoEvidenceProvider extends ChangeNotifier {
       _photos.removeWhere((p) => p.id == id);
       notifyListeners();
     } catch (e) {
-      print('删除照片记录失败: $e');
+      debugPrint('删除照片记录失败: $e');
       rethrow;
     }
   }

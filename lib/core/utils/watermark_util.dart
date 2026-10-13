@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
@@ -66,7 +67,7 @@ class WatermarkUtil {
 
     return outputPath;
     } catch (e) {
-      print('添加水印失败: $e');
+      debugPrint('添加水印失败: $e');
       rethrow;
     }
   }

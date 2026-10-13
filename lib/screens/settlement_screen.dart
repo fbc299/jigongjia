@@ -109,7 +109,6 @@ class _SettlementScreenState extends State<SettlementScreen> {
   }
 
   Widget _buildSettlementTile(BuildContext context, Settlement settlement) {
-    final dateStr = DateFormat('MM/dd').format(settlement.date);
     final typeLabel = settlement.type == SettlementType.partial
         ? '部分结算'
         : '全额结算';

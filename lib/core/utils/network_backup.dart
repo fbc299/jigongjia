@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -49,13 +48,6 @@ class NetworkBackupService {
 
   String _serverUrl = _defaultUrl;
   String _token = _defaultToken;
-  SharedPreferences? _prefs;
-
-  /// Initialize and cache SharedPreferences instance.
-  Future<SharedPreferences> _getPrefs() async {
-    _prefs ??= await SharedPreferences.getInstance();
-    return _prefs!;
-  }
 
   Future<void> load() async {
     try {
@@ -63,7 +55,7 @@ class NetworkBackupService {
       _serverUrl = prefs.getString(_prefUrl) ?? _defaultUrl;
       _token = prefs.getString(_prefToken) ?? _defaultToken;
     } catch (e) {
-      print('加载备份配置失败: $e');
+      debugPrint('加载备份配置失败: $e');
       rethrow;
     }
   }
@@ -76,7 +68,7 @@ class NetworkBackupService {
       await prefs.setString(_prefUrl, url);
       await prefs.setString(_prefToken, token);
     } catch (e) {
-      print('保存备份配置失败: $e');
+      debugPrint('保存备份配置失败: $e');
       rethrow;
     }
   }
@@ -165,7 +157,7 @@ class NetworkBackupService {
       );
     });
     } catch (e) {
-      print('上传备份失败: $e');
+      debugPrint('上传备份失败: $e');
       // 网络异常 / 服务端无法访问：服务器侧失败
       return BackupUploadResult(name: backupName ?? '', serverOk: false, cosOk: null);
     }
@@ -207,7 +199,7 @@ class NetworkBackupService {
       throw Exception('获取列表失败: HTTP ${resp.statusCode}');
     });
     } catch (e) {
-      print('获取备份列表失败: $e');
+      debugPrint('获取备份列表失败: $e');
       rethrow;
     }
   }
@@ -233,7 +225,7 @@ class NetworkBackupService {
       throw Exception('下载失败: HTTP ${resp.statusCode}');
     });
     } catch (e) {
-      print('下载备份失败: $e');
+      debugPrint('下载备份失败: $e');
       rethrow;
     }
   }
@@ -252,7 +244,7 @@ class NetworkBackupService {
       debugPrint('[NetworkBackup] 删除成功: $name');
     });
     } catch (e) {
-      print('删除备份失败: $e');
+      debugPrint('删除备份失败: $e');
       rethrow;
     }
   }

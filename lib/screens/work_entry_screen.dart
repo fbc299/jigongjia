@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
@@ -207,7 +206,7 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -323,15 +322,15 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
               margin: const EdgeInsets.all(2),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? theme.colorScheme.primary.withOpacity(0.1)
+                    ? theme.colorScheme.primary.withValues(alpha: 0.1)
                     : (record != null ? Colors.white : Colors.transparent),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: isToday
                       ? theme.colorScheme.primary
                       : (isSelected
-                          ? theme.colorScheme.primary.withOpacity(0.4)
-                          : Colors.grey.withOpacity(0.08)),
+                          ? theme.colorScheme.primary.withValues(alpha: 0.4)
+                          : Colors.grey.withValues(alpha: 0.08)),
                   width: isToday ? 1.5 : 0.5,
                 ),
               ),
@@ -372,7 +371,7 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
         decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.15),
+          color: Colors.orange.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(4),
         ),
         child: const Text('休', style: TextStyle(fontSize: 9, color: Colors.orange)),
@@ -420,7 +419,7 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -727,6 +726,7 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
   }
 
   Future<void> _save() async {
+    final ctx = context;
     try {
     final record = WorkRecord(
       id: widget.existingRecord?.id,
@@ -747,7 +747,7 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
       isRest: _isRest,
     );
 
-    final provider = context.read<WorkProvider>();
+    final provider = ctx.read<WorkProvider>();
     if (_isEdit) {
       await provider.updateRecord(record);
     } else {
@@ -764,13 +764,14 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
       prefs.setDouble('lastPkgQtyRate', _p(_qtyUnitPriceCtrl.text));
       prefs.setString('lastQtyUnit', _qtyUnit);
     }
-    ScaffoldMessenger.of(context).showSnackBar(
+    if (!ctx.mounted) return;
+    ScaffoldMessenger.of(ctx).showSnackBar(
       SnackBar(content: Text(_isEdit ? '已保存' : '已记录 ✓')),
     );
-    Navigator.of(context).pop();
+    Navigator.of(ctx).pop();
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
           SnackBar(content: Text('操作失败: $e')),
         );
       }
@@ -807,7 +808,7 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
       _qtyUnitPriceCtrl.text = _fmt(prefs.getDouble('lastPkgQtyRate') ?? widget.project.defaultPackageQtyRate);
       _qtyUnit = prefs.getString('lastQtyUnit') ?? (widget.project.defaultQtyUnit.isNotEmpty ? widget.project.defaultQtyUnit : '平方');
     } catch (e) {
-      print('加载保存的费率失败: $e');
+      debugPrint('加载保存的费率失败: $e');
     }
   }
 

@@ -54,11 +54,12 @@ class _AppShellState extends State<AppShell> {
 
   /// Prompt user to backup instead of auto-backing up silently.
   Future<void> _promptBackup() async {
+    final ctx = context;
     try {
       final service = NetworkBackupService();
       await service.load();
       final ok = await service.ping();
-      if (!ok || !mounted) return;
+      if (!ok || !ctx.mounted) return;
 
       // Check if already backed up today
       final prefs = await SharedPreferences.getInstance();
@@ -66,28 +67,27 @@ class _AppShellState extends State<AppShell> {
       final today = DateFormat('yyyyMMdd').format(DateTime.now());
       if (lastBackup == today) return;
 
-      if (!mounted) return;
+      if (!ctx.mounted) return;
       final confirm = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
+        context: ctx,
+        builder: (dlg) => AlertDialog(
           title: const Text('数据备份'),
           content: const Text('检测到备份服务器可用，是否备份当前数据？'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
+              onPressed: () => Navigator.pop(dlg, false),
               child: const Text('跳过'),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
+              onPressed: () => Navigator.pop(dlg, true),
               child: const Text('备份'),
             ),
           ],
         ),
       );
-      if (confirm != true || !mounted) return;
+      if (confirm != true || !ctx.mounted) return;
 
       // Build backup data
-      final ctx = context;
       final projects = ctx.read<ProjectProvider>().projects;
       final data = json.encode({
         'version': 1, 'exportedAt': DateTime.now().toIso8601String(),
@@ -106,8 +106,8 @@ class _AppShellState extends State<AppShell> {
       if (result.serverOk) {
         await prefs.setString('last_backup_date', today);
       }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
           SnackBar(content: Text(result.message)),
         );
       }

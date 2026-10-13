@@ -236,7 +236,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         margin: const EdgeInsets.only(bottom: 8),
         child: ListTile(
           leading: CircleAvatar(
-            backgroundColor: catColor.withOpacity(0.12),
+            backgroundColor: catColor.withValues(alpha: 0.12),
             child: Icon(
               _categoryIcons[expense.category] ?? Icons.category,
               color: catColor,
@@ -262,13 +262,15 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
   }
 
   Future<void> _showAddExpenseDialog(BuildContext context) async {
+    final outerCtx = context;
     final amountController = TextEditingController();
     final noteController = TextEditingController();
     String selectedCategory = '吃饭';
     DateTime selectedDate = DateTime.now();
 
+    final expenseProvider = outerCtx.read<ExpenseProvider>();
     final result = await showDialog<bool>(
-      context: context,
+      context: outerCtx,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
@@ -346,11 +348,12 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       },
     );
 
-    if (result == true && mounted) {
+    if (result == true) {
       try {
         final amount = double.tryParse(amountController.text);
         if (amount == null || amount <= 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if (!outerCtx.mounted) return;
+          ScaffoldMessenger.of(outerCtx).showSnackBar(
             const SnackBar(content: Text('请输入有效金额')),
           );
           return;
@@ -363,10 +366,10 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
           note: noteController.text.trim(),
         );
 
-        await context.read<ExpenseProvider>().addExpense(expense);
+        await expenseProvider.addExpense(expense);
       } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+        if (outerCtx.mounted) {
+          ScaffoldMessenger.of(outerCtx).showSnackBar(
             SnackBar(content: Text('操作失败: $e')),
           );
         }

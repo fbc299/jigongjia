@@ -66,7 +66,7 @@ class _NoteScreenState extends State<NoteScreen> {
                 fillColor: Theme.of(context)
                     .colorScheme
                     .surfaceContainerHighest
-                    .withOpacity(0.5),
+                    .withValues(alpha: 0.5),
               ),
               onChanged: (v) => setState(() => _searchQuery = v),
             ),
@@ -165,14 +165,16 @@ class _NoteScreenState extends State<NoteScreen> {
   }
 
   Future<void> _showNoteDialog(BuildContext context, {Note? note}) async {
+    final outerCtx = context;
     final contentController = TextEditingController(text: note?.content ?? '');
     String? selectedProjectId = note?.projectId;
 
     final projectProvider = context.read<ProjectProvider>();
     final projects = projectProvider.activeProjects;
 
+    final noteProvider = outerCtx.read<NoteProvider>();
     final result = await showDialog<bool>(
-      context: context,
+      context: outerCtx,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
@@ -231,17 +233,16 @@ class _NoteScreenState extends State<NoteScreen> {
       },
     );
 
-    if (result == true && mounted) {
+    if (result == true) {
       try {
         final content = contentController.text.trim();
         if (content.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if (!outerCtx.mounted) return;
+          ScaffoldMessenger.of(outerCtx).showSnackBar(
             const SnackBar(content: Text('笔记内容不能为空')),
           );
           return;
         }
-
-        final noteProvider = context.read<NoteProvider>();
 
         if (note != null) {
           final updated = note.copyWith(
@@ -257,8 +258,8 @@ class _NoteScreenState extends State<NoteScreen> {
           await noteProvider.addNote(newNote);
         }
       } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+        if (outerCtx.mounted) {
+          ScaffoldMessenger.of(outerCtx).showSnackBar(
             SnackBar(content: Text('操作失败: $e')),
           );
         }
@@ -267,30 +268,32 @@ class _NoteScreenState extends State<NoteScreen> {
   }
 
   Future<void> _confirmDelete(Note note) async {
+    final ctx = context;
+    final noteProvider = ctx.read<NoteProvider>();
     final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
+      context: ctx,
+      builder: (dlg) => AlertDialog(
         title: const Text('删除笔记'),
         content: const Text('确定要删除这条笔记吗？'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop(dlg, false),
             child: const Text('取消'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () => Navigator.pop(dlg, true),
             child: const Text('删除'),
           ),
         ],
       ),
     );
 
-    if (confirm == true && mounted) {
+    if (confirm == true) {
       try {
-        await context.read<NoteProvider>().deleteNote(note.id);
+        await noteProvider.deleteNote(note.id);
       } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+        if (ctx.mounted) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
             SnackBar(content: Text('操作失败: $e')),
           );
         }

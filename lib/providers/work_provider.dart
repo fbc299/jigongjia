@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -33,7 +32,7 @@ class WorkProvider extends ChangeNotifier {
       _records = maps.map((m) => WorkRecord.fromMap(m)).toList();
       notifyListeners();
     } catch (e) {
-      print('加载工时记录失败: $e');
+      debugPrint('加载工时记录失败: $e');
       rethrow;
     }
   }
@@ -49,7 +48,7 @@ class WorkProvider extends ChangeNotifier {
       _records.insert(0, record);
       notifyListeners();
     } catch (e) {
-      print('添加工时记录失败: $e');
+      debugPrint('添加工时记录失败: $e');
       rethrow;
     }
   }
@@ -69,7 +68,7 @@ class WorkProvider extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('更新工时记录失败: $e');
+      debugPrint('更新工时记录失败: $e');
       rethrow;
     }
   }
@@ -85,7 +84,7 @@ class WorkProvider extends ChangeNotifier {
       _records.removeWhere((r) => r.id == id);
       notifyListeners();
     } catch (e) {
-      print('删除工时记录失败: $e');
+      debugPrint('删除工时记录失败: $e');
       rethrow;
     }
   }

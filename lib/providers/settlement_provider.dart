@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -36,7 +35,7 @@ class SettlementProvider extends ChangeNotifier {
       _settlements = maps.map((m) => Settlement.fromMap(m)).toList();
       notifyListeners();
     } catch (e) {
-      print('加载结算记录失败: $e');
+      debugPrint('加载结算记录失败: $e');
       rethrow;
     }
   }
@@ -52,7 +51,7 @@ class SettlementProvider extends ChangeNotifier {
       _settlements.insert(0, settlement);
       notifyListeners();
     } catch (e) {
-      print('添加结算记录失败: $e');
+      debugPrint('添加结算记录失败: $e');
       rethrow;
     }
   }
@@ -68,7 +67,7 @@ class SettlementProvider extends ChangeNotifier {
       _settlements.removeWhere((s) => s.id == id);
       notifyListeners();
     } catch (e) {
-      print('删除结算记录失败: $e');
+      debugPrint('删除结算记录失败: $e');
       rethrow;
     }
   }

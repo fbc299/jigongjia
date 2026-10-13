@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -33,7 +32,7 @@ class NoteProvider extends ChangeNotifier {
       _notes = maps.map((m) => Note.fromMap(m)).toList();
       notifyListeners();
     } catch (e) {
-      print('加载笔记失败: $e');
+      debugPrint('加载笔记失败: $e');
       rethrow;
     }
   }
@@ -49,7 +48,7 @@ class NoteProvider extends ChangeNotifier {
       _notes.insert(0, note);
       notifyListeners();
     } catch (e) {
-      print('添加笔记失败: $e');
+      debugPrint('添加笔记失败: $e');
       rethrow;
     }
   }
@@ -70,7 +69,7 @@ class NoteProvider extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('更新笔记失败: $e');
+      debugPrint('更新笔记失败: $e');
       rethrow;
     }
   }
@@ -86,7 +85,7 @@ class NoteProvider extends ChangeNotifier {
       _notes.removeWhere((n) => n.id == id);
       notifyListeners();
     } catch (e) {
-      print('删除笔记失败: $e');
+      debugPrint('删除笔记失败: $e');
       rethrow;
     }
   }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:jigongjia/models/work_record.dart';
 
 /// Shared numeric input field used by all input panels.
 Widget _numField(
@@ -66,7 +65,7 @@ class TimeInputPanel extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: sel
                         ? theme.colorScheme.primary
-                        : Colors.grey.withOpacity(0.08),
+                        : Colors.grey.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Center(

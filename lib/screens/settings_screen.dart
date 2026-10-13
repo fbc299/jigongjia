@@ -164,33 +164,36 @@ class _ProjectManagementSection extends StatelessWidget {
   }
 
   Future<void> _deleteProject(BuildContext context, Project project) async {
+    final ctx = context;
+    final projectProvider = ctx.read<ProjectProvider>();
     final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
+      context: ctx,
+      builder: (dlg) => AlertDialog(
         title: const Text('删除项目'),
         content: Text('确定要删除"${project.name}"吗？\n相关的记工记录也会被删除，此操作不可撤销。'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop(dlg, false),
             child: const Text('取消'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () => Navigator.pop(dlg, true),
             child: const Text('删除'),
           ),
         ],
       ),
     );
 
-    if (confirm == true && context.mounted) {
+    if (confirm == true) {
       try {
-        await context.read<ProjectProvider>().deleteProject(project.id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已删除项目: \${project.name}')),
+        await projectProvider.deleteProject(project.id);
+        if (!ctx.mounted) return;
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          SnackBar(content: Text('已删除项目: ${project.name}')),
         );
       } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+        if (ctx.mounted) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
             SnackBar(content: Text('操作失败: $e')),
           );
         }
@@ -320,6 +323,7 @@ class _DataManagementSection extends StatelessWidget {
         return;
       }
 
+      if (!context.mounted) return;
       await _importFromBackupJson(context, jsonStr);
 
       if (context.mounted) {
@@ -571,10 +575,11 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
 
 
   void _showSettings() {
+    final outerCtx = context;
     final urlCtrl = TextEditingController(text: _service.serverUrl);
     final tokenCtrl = TextEditingController(text: _service.token);
     showDialog(
-      context: context,
+      context: outerCtx,
       builder: (ctx) => AlertDialog(
         title: const Text('备份服务器设置'),
         content: Column(
@@ -597,15 +602,17 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
             if (url.isEmpty ||
                 !(uri?.scheme == 'https' ||
                     (uri?.scheme == 'http' && isLoopback))) {
-              ScaffoldMessenger.of(context).showSnackBar(
+              ScaffoldMessenger.of(ctx).showSnackBar(
                 const SnackBar(
                   content: Text('地址须为 HTTPS（本机测试可用 http://127.0.0.1）'),
                 ),
               );
               return;
             }
+            final dialogCtx = ctx;
             await _service.save(url, tokenCtrl.text.trim());
-            Navigator.pop(ctx);
+            if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+            if (!outerCtx.mounted) return;
             setState(() => _loading = true);
             _init();
           }, child: const Text('保存')),
@@ -712,11 +719,12 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
   }
 
   Future<void> _importFromJson(String jsonStr) async {
+    final ctx = context;
     try {
-      await _importFromBackupJson(context, jsonStr);
+      await _importFromBackupJson(ctx, jsonStr);
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
           SnackBar(content: Text('操作失败: $e')),
         );
       }

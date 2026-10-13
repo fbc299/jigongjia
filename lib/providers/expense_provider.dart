@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -36,7 +35,7 @@ class ExpenseProvider extends ChangeNotifier {
       _expenses = maps.map((m) => Expense.fromMap(m)).toList();
       notifyListeners();
     } catch (e) {
-      print('加载开支记录失败: $e');
+      debugPrint('加载开支记录失败: $e');
       rethrow;
     }
   }
@@ -52,7 +51,7 @@ class ExpenseProvider extends ChangeNotifier {
       _expenses.insert(0, expense);
       notifyListeners();
     } catch (e) {
-      print('添加开支记录失败: $e');
+      debugPrint('添加开支记录失败: $e');
       rethrow;
     }
   }
@@ -68,7 +67,7 @@ class ExpenseProvider extends ChangeNotifier {
       _expenses.removeWhere((e) => e.id == id);
       notifyListeners();
     } catch (e) {
-      print('删除开支记录失败: $e');
+      debugPrint('删除开支记录失败: $e');
       rethrow;
     }
   }

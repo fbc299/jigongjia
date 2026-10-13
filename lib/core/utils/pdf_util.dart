@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -111,7 +111,7 @@ class PdfUtil {
 
     return pdf.save();
     } catch (e) {
-      print('生成PDF失败: $e');
+      debugPrint('生成PDF失败: $e');
       rethrow;
     }
   }

@@ -27,7 +27,6 @@ class RecordTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final dateFormat = DateFormat('MM/dd');
-    final numberFormat = NumberFormat('#,##0.00');
 
     final iconData = _getIcon();
     final iconColor = _getColor(theme);
@@ -47,7 +46,7 @@ class RecordTile extends StatelessWidget {
       ),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: iconColor.withOpacity(0.12),
+          backgroundColor: iconColor.withValues(alpha: 0.12),
           child: Icon(iconData, color: iconColor, size: 20),
         ),
         title: Text(

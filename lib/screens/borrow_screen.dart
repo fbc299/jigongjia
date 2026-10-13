@@ -327,6 +327,7 @@ class _BorrowScreenState extends State<BorrowScreen> {
               actions: [
                 TextButton(
                   onPressed: () async {
+                    final borrowProvider = context.read<BorrowProvider>();
                     final confirm = await showDialog<bool>(
                       context: dialogContext,
                       builder: (ctx) => AlertDialog(
@@ -340,7 +341,7 @@ class _BorrowScreenState extends State<BorrowScreen> {
                     );
                     if (confirm == true) {
                       try {
-                        await context.read<BorrowProvider>().deleteRecord(record.id);
+                        await borrowProvider.deleteRecord(record.id);
                         if (dialogContext.mounted) Navigator.pop(dialogContext);
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('借支已删除')));
@@ -404,7 +405,7 @@ class _TotalBorrowedHeader extends StatelessWidget {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.12),
+        color: Colors.orange.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(

@@ -180,6 +180,7 @@ class _PhotoEvidenceScreenState extends State<PhotoEvidenceScreen> {
     final project = projectProvider.getProjectById(_projectId!);
     if (project == null) return;
 
+    final photoProvider = context.read<PhotoEvidenceProvider>();
     try {
       final XFile? image = await _picker.pickImage(
         source: source,
@@ -207,8 +208,7 @@ class _PhotoEvidenceScreenState extends State<PhotoEvidenceScreen> {
         timestamp: now,
       );
 
-      final provider = context.read<PhotoEvidenceProvider>();
-      await provider.addPhoto(photoEvidence);
+      await photoProvider.addPhoto(photoEvidence);
 
       if (mounted) {
         setState(() => _isProcessing = false);
@@ -239,27 +239,28 @@ class _PhotoEvidenceScreenState extends State<PhotoEvidenceScreen> {
   }
 
   Future<void> _deletePhoto(PhotoEvidence photo) async {
+    final ctx = context;
+    final provider = ctx.read<PhotoEvidenceProvider>();
     final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
+      context: ctx,
+      builder: (dlg) => AlertDialog(
         title: const Text('删除照片'),
         content: const Text('确定要删除这张照片吗？'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop(dlg, false),
             child: const Text('取消'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () => Navigator.pop(dlg, true),
             child: const Text('删除'),
           ),
         ],
       ),
     );
 
-    if (confirm == true && mounted) {
+    if (confirm == true) {
       try {
-        final provider = context.read<PhotoEvidenceProvider>();
         await provider.deletePhoto(photo.id);
 
         // Also delete the file
@@ -268,8 +269,8 @@ class _PhotoEvidenceScreenState extends State<PhotoEvidenceScreen> {
           await file.delete();
         }
       } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+        if (ctx.mounted) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
             SnackBar(content: Text('操作失败: $e')),
           );
         }

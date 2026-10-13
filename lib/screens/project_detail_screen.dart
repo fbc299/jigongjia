@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:jigongjia/core/utils/privacy_service.dart';
 
 import 'package:jigongjia/models/project.dart';
@@ -300,7 +299,7 @@ class _ActionChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: color.withOpacity(0.1),
+      color: color.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -414,7 +413,7 @@ class _DiaryCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.withOpacity(0.12)),
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.12)),
         ),
         child: Row(
           children: [
@@ -443,7 +442,7 @@ class _DiaryCard extends StatelessWidget {
               width: 1,
               height: 36,
               margin: const EdgeInsets.symmetric(horizontal: 10),
-              color: Colors.grey.withOpacity(0.15),
+              color: Colors.grey.withValues(alpha: 0.15),
             ),
             // Content
             Expanded(

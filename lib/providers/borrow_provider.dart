@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -36,7 +35,7 @@ class BorrowProvider extends ChangeNotifier {
       _records = maps.map((m) => BorrowRecord.fromMap(m)).toList();
       notifyListeners();
     } catch (e) {
-      print('加载借支记录失败: $e');
+      debugPrint('加载借支记录失败: $e');
       rethrow;
     }
   }
@@ -52,7 +51,7 @@ class BorrowProvider extends ChangeNotifier {
       _records.insert(0, record);
       notifyListeners();
     } catch (e) {
-      print('添加借支记录失败: $e');
+      debugPrint('添加借支记录失败: $e');
       rethrow;
     }
   }
@@ -68,7 +67,7 @@ class BorrowProvider extends ChangeNotifier {
       _records.removeWhere((r) => r.id == id);
       notifyListeners();
     } catch (e) {
-      print('删除借支记录失败: $e');
+      debugPrint('删除借支记录失败: $e');
       rethrow;
     }
   }
@@ -86,7 +85,7 @@ class BorrowProvider extends ChangeNotifier {
       if (idx >= 0) _records[idx] = record;
       notifyListeners();
     } catch (e) {
-      print('更新借支记录失败: $e');
+      debugPrint('更新借支记录失败: $e');
       rethrow;
     }
   }

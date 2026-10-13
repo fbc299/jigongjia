@@ -1,4 +1,5 @@
 import 'package:sqflite/sqflite.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import '../constants/app_constants.dart';
 
@@ -13,7 +14,7 @@ class DatabaseHelper {
       _database = await _initDatabase();
       return _database!;
     } catch (e) {
-      print('获取数据库失败: $e');
+      debugPrint('获取数据库失败: $e');
       rethrow;
     }
   }
@@ -32,7 +33,7 @@ class DatabaseHelper {
         },
       );
     } catch (e) {
-      print('初始化数据库失败: $e');
+      debugPrint('初始化数据库失败: $e');
       rethrow;
     }
   }
@@ -160,7 +161,7 @@ class DatabaseHelper {
       'CREATE INDEX idx_notes_project ON ${AppConstants.tableNotes} (projectId)',
     );
     } catch (e) {
-      print('创建数据库表失败: $e');
+      debugPrint('创建数据库表失败: $e');
       rethrow;
     }
   }
@@ -173,7 +174,7 @@ class DatabaseHelper {
         _database = null;
       }
     } catch (e) {
-      print('关闭数据库失败: $e');
+      debugPrint('关闭数据库失败: $e');
       rethrow;
     }
   }
@@ -185,7 +186,7 @@ class DatabaseHelper {
       await deleteDatabase(path);
       _database = null;
     } catch (e) {
-      print('删除数据库失败: $e');
+      debugPrint('删除数据库失败: $e');
       rethrow;
     }
   }

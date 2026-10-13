@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -69,7 +68,7 @@ class ProjectProvider extends ChangeNotifier {
       _projects = maps.map((m) => Project.fromMap(m)).toList();
       notifyListeners();
     } catch (e) {
-      print('加载项目失败: $e');
+      debugPrint('加载项目失败: $e');
       rethrow;
     }
   }
@@ -105,7 +104,7 @@ class ProjectProvider extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('更新项目失败: $e');
+      debugPrint('更新项目失败: $e');
       rethrow;
     }
   }
@@ -117,7 +116,7 @@ class ProjectProvider extends ChangeNotifier {
       final archived = project.copyWith(isArchived: true);
       await updateProject(archived);
     } catch (e) {
-      print('归档项目失败: $e');
+      debugPrint('归档项目失败: $e');
       rethrow;
     }
   }
@@ -138,7 +137,7 @@ class ProjectProvider extends ChangeNotifier {
       _settlement?.removeByProject(id);
       _photo?.removeByProject(id);
     } catch (e) {
-      print('删除项目失败: $e');
+      debugPrint('删除项目失败: $e');
       rethrow;
     }
   }

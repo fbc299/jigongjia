@@ -6,8 +6,14 @@ import 'package:intl/intl.dart';
 import 'package:jigongjia/models/project.dart';
 import 'package:jigongjia/models/work_record.dart';
 import 'package:jigongjia/core/utils/privacy_service.dart';
+import 'package:jigongjia/core/utils/auto_sync_service.dart';
 import 'package:jigongjia/providers/work_provider.dart';
 import 'package:jigongjia/providers/project_provider.dart';
+import 'package:jigongjia/providers/borrow_provider.dart';
+import 'package:jigongjia/providers/settlement_provider.dart';
+import 'package:jigongjia/providers/expense_provider.dart';
+import 'package:jigongjia/providers/note_provider.dart';
+import 'package:jigongjia/providers/photo_evidence_provider.dart';
 import 'package:jigongjia/providers/stats_provider.dart';
 import 'package:jigongjia/screens/widgets/work_type_selector.dart';
 import 'package:jigongjia/screens/widgets/time_input_panel.dart';
@@ -765,11 +771,38 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
       prefs.setDouble('lastPkgQtyRate', _p(_qtyUnitPriceCtrl.text));
       prefs.setString('lastQtyUnit', _qtyUnit);
     }
+    final project = ctx.read<ProjectProvider>();
+    final work = ctx.read<WorkProvider>();
+    final borrow = ctx.read<BorrowProvider>();
+    final settle = ctx.read<SettlementProvider>();
+    final expense = ctx.read<ExpenseProvider>();
+    final note = ctx.read<NoteProvider>();
+    final photo = ctx.read<PhotoEvidenceProvider>();
     if (!ctx.mounted) return;
     ScaffoldMessenger.of(ctx).showSnackBar(
-      SnackBar(content: Text(_isEdit ? '已保存' : '已记录 ✓')),
+      SnackBar(
+        content: Text(_isEdit ? '已保存' : '已记录 ✓'),
+        action: _isEdit
+            ? null
+            : SnackBarAction(
+                label: '同步中',
+                onPressed: () {},
+              ),
+      ),
     );
     Navigator.of(ctx).pop();
+    // 记工成功 → 自动同步一次（后台静默，失败不阻断）
+    if (!_isEdit) {
+      AutoSyncService.syncAfterWorkRecord(
+        projects: project,
+        work: work,
+        borrow: borrow,
+        settlement: settle,
+        expense: expense,
+        note: note,
+        photo: photo,
+      );
+    }
     } catch (e) {
       if (ctx.mounted) {
         ScaffoldMessenger.of(ctx).showSnackBar(

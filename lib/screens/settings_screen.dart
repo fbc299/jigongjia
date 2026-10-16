@@ -634,15 +634,7 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
       final jsonStr = _buildBackupJson();
       final result = await _service.upload(jsonStr, backupName: backupName);
       if (result.serverOk) {
-        // 服务器成功 — 删除旧备份，只留最新一份
-        final list = await _service.list();
-        if (list.length > 1) {
-          // Sort by name (timestamp-based) descending, skip the first (newest)
-          list.sort((a, b) => (b['name'] ?? '').compareTo(a['name'] ?? ''));
-          for (var i = 1; i < list.length; i++) {
-            try { await _service.delete(list[i]['name']); } catch (_) {}
-          }
-        }
+        // 服务端自动维护快照与保留策略（每次备份前自动存 10 份 .vNN 快照）
         _backups = await _service.list();
       }
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.message)));

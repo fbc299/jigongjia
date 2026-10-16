@@ -32,7 +32,7 @@ class AutoSyncService {
       String two(int v) => v.toString().padLeft(2, '0');
       String four(int v) => v.toString().padLeft(4, '0');
       final projectNames =
-          projects.projects.map((p) => p.name).join('+') ?? '';
+          projects.projects.map((p) => p.name).join('+');
       final name =
           '${projectNames}_${four(now.year)}${two(now.month)}${two(now.day)}_'
           '${two(now.hour)}${two(now.minute)}${two(now.second)}.json';

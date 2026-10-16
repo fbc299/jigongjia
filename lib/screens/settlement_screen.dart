@@ -389,7 +389,7 @@ class _SettlementSummary extends StatelessWidget {
           _SummaryRow(
             label: '已结算',
             value: totalSettled,
-            color: AppTheme.brick!,
+            color: AppTheme.brick,
           ),
           const SizedBox(height: 10),
           _SummaryRow(

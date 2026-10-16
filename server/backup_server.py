@@ -276,26 +276,62 @@ class BackupHandler(BaseHTTPRequestHandler):
             except (json.JSONDecodeError, ValueError):
                 return self._json(400, {"error": "无效的 JSON 格式"})
             name = _sanitize_backup_name(data.pop("__backup_name", None))
-            now = datetime.now()
+            now = datetime.now().isoformat(timespec="seconds")
+            body_str = json.dumps(data, ensure_ascii=False)
+            SNAP_MAX = 10   # 保留最近 10 份快照
             with _db_lock, _db() as conn:
+                # ── 快照机制：保留「这次记工之前」的备份为 .vNN 快照（文件名体现）──
+                src = conn.execute(
+                    f"SELECT name, body FROM {TABLE} WHERE name=?",
+                    (name,)).fetchone()
+                if src is None:
+                    src = conn.execute(
+                        f"SELECT name, body FROM {TABLE} "
+                        f"WHERE name NOT LIKE '%.v%.json' "
+                        "ORDER BY created_at DESC, name DESC LIMIT 1"
+                    ).fetchone()
+                olds = []
+                old_snaps = []
+                snap_upload = None   # (snap_name, body)，锁外镜像
+                if src:
+                    base = src[0]
+                    n = 0
+                    snap_name = f"{base[:-5]}.v{n:02d}.json"
+                    while conn.execute(f"SELECT 1 FROM {TABLE} WHERE name=?",
+                                       (snap_name,)).fetchone():
+                        n += 1
+                        snap_name = f"{base[:-5]}.v{n:02d}.json"
+                    conn.execute(
+                        f"INSERT INTO {TABLE} (name, body, created_at) VALUES (?,?,?)",
+                        (snap_name, src[1], now))
+                    snap_upload = (snap_name, src[1])
                 conn.execute(
                     f"INSERT OR REPLACE INTO {TABLE} (name, body, created_at) VALUES (?,?,?)",
-                    (name, json.dumps(data, ensure_ascii=False), now.isoformat(timespec="seconds")),
+                    (name, body_str, now),
                 )
-                # 保留最新 MAX_BACKUPS 份
+                # 主备份保留最新 MAX_BACKUPS 份（不含快照），快照保留最新 SNAP_MAX 份
                 olds = [r[0] for r in conn.execute(
-                    f"SELECT name FROM {TABLE} ORDER BY created_at DESC, name DESC LIMIT -1 OFFSET ?",
+                    f"SELECT name FROM {TABLE} WHERE name NOT LIKE '%.v%.json' "
+                    f"ORDER BY created_at DESC, name DESC LIMIT -1 OFFSET ?",
                     (MAX_BACKUPS,)).fetchall()]
-                if olds:
-                    conn.executemany(f"DELETE FROM {TABLE} WHERE name=?", [(o,) for o in olds])
-            # 镜像到腾讯云 COS（尽力而为，失败不阻断主备份）
-            cos_ok = cos_mirroring_upload(name, json.dumps(data, ensure_ascii=False))
-            # 同时清理被挤掉的旧备份在 COS 的副本
-            for o in olds:
+                old_snaps = [r[0] for r in conn.execute(
+                    f"SELECT name FROM {TABLE} WHERE name LIKE '%.v%.json' "
+                    f"ORDER BY name DESC LIMIT -1 OFFSET ?",
+                    (SNAP_MAX,)).fetchall()]
+                if olds + old_snaps:
+                    conn.executemany(f"DELETE FROM {TABLE} WHERE name=?",
+                                     [(o,) for o in olds + old_snaps])
+            # 镜像到腾讯云 COS（锁外，尽力而为，失败不阻断主备份）
+            if snap_upload:
+                cos_mirroring_upload(snap_upload[0], snap_upload[1])
+            # 清理被挤掉的主备份与旧快照在 COS 的副本
+            for o in olds + old_snaps:
                 cos_mirroring_delete(o)
+            # 主备份镜像到腾讯云 COS
+            cos_ok = cos_mirroring_upload(name, body_str)
             return self._json(200, {"ok": True, "name": name,
                                     "cos_ok": cos_ok,
-                                    "time": now.strftime("%Y-%m-%d %H:%M:%S")})
+                                    "time": now})
 
         self._json(404, {"error": "接口不存在"})
 

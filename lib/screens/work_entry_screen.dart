@@ -780,20 +780,12 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
     final photo = ctx.read<PhotoEvidenceProvider>();
     if (!ctx.mounted) return;
     ScaffoldMessenger.of(ctx).showSnackBar(
-      SnackBar(
-        content: Text(_isEdit ? '已保存' : '已记录 ✓'),
-        action: _isEdit
-            ? null
-            : SnackBarAction(
-                label: '同步中',
-                onPressed: () {},
-              ),
-      ),
+      SnackBar(content: Text(_isEdit ? '已保存' : '已记录 ✓')),
     );
     Navigator.of(ctx).pop();
-    // 记工成功 → 自动同步一次（后台静默，失败不阻断）
+    // 记工成功 → 自动同步一次；完成后弹出真实结果（成功/失败），不留假「同步中」
     if (!_isEdit) {
-      AutoSyncService.syncAfterWorkRecord(
+      final synced = await AutoSyncService.syncAfterWorkRecord(
         projects: project,
         work: work,
         borrow: borrow,
@@ -802,6 +794,17 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
         note: note,
         photo: photo,
       );
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          SnackBar(
+            content: Text(
+              synced.isEmpty
+                  ? '自动同步失败，可稍后在工具页手动备份'
+                  : '已自动同步备份 ✓',
+            ),
+          ),
+        );
+      }
     }
     } catch (e) {
       if (ctx.mounted) {

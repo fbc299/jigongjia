@@ -52,7 +52,9 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
   bool _isFuture(DateTime d) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    return d.isAfter(today);
+    // 归一化到天再比较: DateTime.now() 带时分, 直接比较会把「今天」误判为未到
+    final dDay = DateTime(d.year, d.month, d.day);
+    return dDay.isAfter(today);
   }
 
   @override

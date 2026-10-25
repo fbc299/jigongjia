@@ -787,16 +787,16 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
     } else {
       await provider.addRecord(record);
     }
-    // Save rates for next time
+    // Save rates for next time（S1：键带 projectId，避免 A 项目单价污染 B 项目）
     final prefs = await _ensurePrefs();
     if (_workType == WorkType.point) {
-      prefs.setDouble('lastDailyRate', _p(_dailyRateCtrl.text));
-      prefs.setDouble('lastOvertimeRate', _p(_overtimeRateCtrl.text));
+      prefs.setDouble(_rateKey('daily'), _p(_dailyRateCtrl.text));
+      prefs.setDouble(_rateKey('overtime'), _p(_overtimeRateCtrl.text));
     } else if (_workType == WorkType.packageDay) {
-      prefs.setDouble('lastPkgDayRate', _p(_packageDayRateCtrl.text));
+      prefs.setDouble(_rateKey('pkgDay'), _p(_packageDayRateCtrl.text));
     } else {
-      prefs.setDouble('lastPkgQtyRate', _p(_qtyUnitPriceCtrl.text));
-      prefs.setString('lastQtyUnit', _qtyUnit);
+      prefs.setDouble(_rateKey('pkgQty'), _p(_qtyUnitPriceCtrl.text));
+      prefs.setString(_rateKey('qtyUnit'), _qtyUnit);
     }
     final project = ctx.read<ProjectProvider>();
     final work = ctx.read<WorkProvider>();
@@ -885,15 +885,42 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
   Future<void> _loadSavedRates() async {
     try {
       final prefs = await _ensurePrefs();
-      _dailyRateCtrl.text = _fmt(prefs.getDouble('lastDailyRate') ?? widget.project.defaultDailyRate);
-      _overtimeRateCtrl.text = _fmt(prefs.getDouble('lastOvertimeRate') ?? widget.project.defaultOvertimeRate);
-      _packageDayRateCtrl.text = _fmt(prefs.getDouble('lastPkgDayRate') ?? widget.project.defaultPackageDayRate);
-      _qtyUnitPriceCtrl.text = _fmt(prefs.getDouble('lastPkgQtyRate') ?? widget.project.defaultPackageQtyRate);
-      _qtyUnit = prefs.getString('lastQtyUnit') ?? (widget.project.defaultQtyUnit.isNotEmpty ? widget.project.defaultQtyUnit : '平方');
+      if (!mounted) return;
+      // S2：预填是异步的，完成时首帧已经画过了。不 setState 的话输入框里已有单价，
+      // 预览金额却还是 0 —— 用户以为在记 0 元，实际落库的是预填的费率。
+      setState(() {
+        // 只在用户还没输入时填充，避免慢速 IO 回来把手输的值覆盖掉
+        void fill(TextEditingController c, double fallback) {
+          if (c.text.trim().isEmpty) c.text = _fmt(fallback);
+        }
+
+        fill(_dailyRateCtrl, prefs.getDouble(_rateKey('daily')) ?? widget.project.defaultDailyRate);
+        fill(_overtimeRateCtrl, prefs.getDouble(_rateKey('overtime')) ?? widget.project.defaultOvertimeRate);
+        fill(
+          _packageDayRateCtrl,
+          prefs.getDouble(_rateKey('pkgDay')) ?? widget.project.defaultPackageDayRate,
+        );
+        fill(
+          _qtyUnitPriceCtrl,
+          prefs.getDouble(_rateKey('pkgQty')) ?? widget.project.defaultPackageQtyRate,
+        );
+        final unit = prefs.getString(_rateKey('qtyUnit'));
+        if (unit != null && unit.isNotEmpty && _qtyUnit == '平方') {
+          _qtyUnit = unit;
+        } else if (widget.project.defaultQtyUnit.isNotEmpty && _qtyUnit == '平方') {
+          _qtyUnit = widget.project.defaultQtyUnit;
+        }
+      });
     } catch (e) {
       debugPrint('加载保存的费率失败: $e');
     }
   }
+
+  /// S1：费率缓存键必须带 projectId 前缀。
+  /// 旧实现是全局键（'lastDailyRate' 等），A 项目填过的单价会被 B 项目继承，
+  /// 于是预览/落库都用错单价 —— 空项目本该用项目默认价，却拿到了别人项目的价。
+  /// 旧的全局键不再读取：无法判断它属于哪个项目，读了就是错价。
+  String _rateKey(String name) => 'lastRate_${widget.projectId}_$name';
 
   String _fmt(double v) {
     if (v == 0) return '';

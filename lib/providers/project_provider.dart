@@ -76,13 +76,27 @@ class ProjectProvider extends ChangeNotifier {
   Future<void> addProject(Project project) async {
     try {
       final db = await DatabaseHelper.instance.database;
+      // 【禁止改回 ConflictAlgorithm.replace】projects 是 5 张子表（work_records /
+      // borrow_records / settlements / photo_evidence / notes）的父表且均声明
+      // ON DELETE CASCADE；SQLite 的 INSERT OR REPLACE 语义是「DELETE 旧行 + INSERT 新行」，
+      // 一旦 id 已存在（合并备份 / 云同步回填 / 重试导入 / 外部传入 id）就会把该项目
+      // 全部记工、借支、结算、照片、笔记物理删除，且 UI 完全正常、无任何提示。
+      // 改用 abort：冲突直接抛异常，宁可不写入也不静默清空历史数据。
       await db.insert(
         AppConstants.tableProjects,
         project.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
+        conflictAlgorithm: ConflictAlgorithm.abort,
       );
       _projects.insert(0, project);
       notifyListeners();
+    } on DatabaseException catch (e) {
+      debugPrint('addProject error: $e');
+      if (e.isUniqueConstraintError()) {
+        throw StateError(
+          '项目已存在（${project.name}，id=${project.id}），已取消写入以免覆盖其历史数据',
+        );
+      }
+      rethrow;
     } catch (e) {
       debugPrint('addProject error: $e');
       rethrow;

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>格格记工 · Apple HIG</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
+body{background:#E8E8ED;font-family:-apple-system,"SF Pro Display","PingFang SC","Helvetica Neue",sans-serif;
+ color:#1D1D1F;padding:36px 20px}
+.wrap{max-width:2200px;margin:0 auto}
+.titlebar{display:flex;align-items:baseline;gap:14px;margin-bottom:22px}
+.titlebar h1{font-size:26px;font-weight:700;letter-spacing:-.02em}
+.titlebar span{font-size:13px;color:#86868B}
+.row{display:flex;gap:26px;justify-content:center;flex-wrap:wrap}
+.pwrap{width:400px;flex-shrink:0}
+.tag{font-size:11px;font-weight:600;color:#86868B;letter-spacing:.08em;text-transform:uppercase;
+ margin:0 0 8px 4px;display:flex;justify-content:space-between}
+.tag b{color:#0A84FF}
+.phone{width:400px;height:812px;background:#F5F5F7;border-radius:44px;overflow:hidden;position:relative;
+ box-shadow:0 24px 60px rgba(0,0,0,.22), inset 0 0 0 1px rgba(0,0,0,.06);display:flex;flex-direction:column}
+.statusbar{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 30px 0 30px;
+ font-size:15px;font-weight:600}
+.statusbar .r{font-size:12px;color:#86868B;display:flex;gap:6px;align-items:center}
+/* iOS big-title nav */
+.bigtitle{padding:6px 22px 10px}
+.bigtitle .bt{font-size:34px;font-weight:700;letter-spacing:-.02em}
+.bigtitle .sub{font-size:13px;color:#86868B;margin-top:2px}
+/* scroll body */
+.body{flex:1;overflow:hidden;padding-bottom:96px}
+/* iOS grouped list card */
+.group{background:#fff;border-radius:14px;margin:0 18px 14px;overflow:hidden}
+.group .gh{padding:14px 16px 8px;font-size:12px;color:#86868B;text-transform:uppercase;letter-spacing:.04em}
+.lrow{display:flex;align-items:center;padding:11px 16px;border-top:.5px solid #E5E5EA;min-height:48px;gap:12px}
+.group .lrow:first-of-type{border-top:none}
+.lrow .li{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+ font-size:17px;font-weight:700;flex-shrink:0}
+.lrow .lc{flex:1;min-width:0}
+.lrow .lc .t{font-size:16px;font-weight:500;letter-spacing:-.01em}
+.lrow .lc .s{font-size:13px;color:#86868B;margin-top:1px}
+.lrow .val{font-size:16px;font-weight:600;color:#0A84FF;font-variant-numeric:tabular-nums}
+.lrow .chev{color:#C7C7CC;font-size:17px;font-weight:600}
+.li.blue{background:#0A84FF1A;color:#0A84FF}.li.green{background:#34C7591A;color:#34C759}
+.li.orange{background:#FF95001A;color:#FF9500}.li.red{background:#FF3B301A;color:#FF3B30}
+.li.purple{background:#AF52DE1A;color:#AF52DE}.li.gray{background:#1D1D1F14;color:#1D1D1F}
+/* iOS tab bar */
+.tabbar{position:absolute;bottom:0;left:0;right:0;height:84px;background:rgba(249,249,251,.92);
+ backdrop-filter:blur(20px);border-top:.5px solid #D2D2D7;display:flex;padding-bottom:20px}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:500;color:#86868B}
+.tab .ic{font-size:22px;line-height:1}
+.tab.on{color:#0A84FF}
+/* home indicator */
+.hi{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);width:134px;height:5px;
+ background:#1D1D1F;border-radius:3px;opacity:.9}
+</style>
+
+<style>
+/* hero summary card (iOS style) */
+.hero{background:#fff;border-radius:14px;margin:0 18px 14px;padding:18px;position:relative;overflow:hidden}
+.hero .hl{font-size:12px;color:#86868B}
+.hero .bignum{font-size:40px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;margin:4px 0 2px}
+.hero .bignum .u{font-size:18px;font-weight:500;color:#86868B}
+.hero .hint{font-size:13px;color:#34C759;font-weight:500}
+.hero .hint.warn{color:#FF9500}
+.hero .cap{position:absolute;right:18px;top:18px;font-size:11px;color:#86868B;background:#F5F5F7;
+ padding:4px 8px;border-radius:6px;font-weight:500}
+/* stat tiles */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 18px 14px}
+.tile{background:#fff;border-radius:14px;padding:14px}
+.tile .tl{font-size:12px;color:#86868B}
+.tile .tv{font-size:22px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:4px}
+.tile .tv .u{font-size:13px;color:#86868B;font-weight:500}
+/* iOS full-width capsule button */
+.cta{margin:6px 18px 14px;background:#0A84FF;color:#fff;border:none;border-radius:14px;
+ padding:16px;font-size:17px;font-weight:600;font-family:inherit;letter-spacing:-.01em;width:calc(100% - 36px);
+ display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 14px rgba(10,132,255,.28)}
+.cta.ghost{background:#fff;color:#0A84FF;box-shadow:none;border:.5px solid #E5E5EA}
+/* calendar */
+.cal{background:#fff;border-radius:14px;margin:0 18px 14px;padding:14px}
+.cal .ch{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.cal .ch .m{font-size:16px;font-weight:600}
+.cal .ch .nav{font-size:13px;color:#0A84FF;font-weight:500}
+.cal .wk{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px}
+.cal .wk span{text-align:center;font-size:11px;color:#86868B;font-weight:500}
+.cal .days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal .d{text-align:center;font-size:14px;font-weight:500;padding:7px 0;border-radius:9px;color:#1D1D1F;font-variant-numeric:tabular-nums}
+.cal .d .dot{display:block;height:4px;width:4px;border-radius:50%;margin:2px auto 0}
+.cal .d.today{background:#0A84FF1A;color:#0A84FF;font-weight:700}
+.cal .d.rest .dot{background:#34C759}.cal .d.work .dot{background:#0A84FF}.cal .d.off .dot{background:#FF9500}
+.cal .d.empty{visibility:hidden}
+/* legend */
+.legend{display:flex;gap:14px;margin:0 18px 12px}
+.legend i{font-style:normal;font-size:12px;color:#86868B;display:flex;align-items:center;gap:6px}
+.legend i::before{content:"";width:8px;height:8px;border-radius:3px;background:#0A84FF}
+.legend i.r::before{background:#34C759}.legend i.o::before{background:#FF9500}
+/* chart bars */
+.chart{background:#fff;border-radius:14px;margin:0 18px 14px;padding:16px}
+.chart .ct{font-size:13px;color:#86868B;margin-bottom:12px}
+.bars{display:flex;align-items:flex-end;gap:8px;height:90px}
+.bars .b{flex:1;background:#0A84FF20;border-radius:5px 5px 0 0;position:relative}
+.bars .b.on{background:#0A84FF}
+.bars .b span{position:absolute;top:-16px;left:0;right:0;text-align:center;font-size:10px;color:#86868B}
+</style>
+
+<div class="wrap">
+<div class="titlebar"><h1>格格记工 · Apple HIG</h1><span>iOS 大标题 / 系统蓝 #0A84FF / 白卡圆角 / 全宽胶囊 / 细线 Tab</span></div>
+<div class="row">
+
+<!-- 1 · 记工 -->
+<div class="pwrap"><div class="tag">01 · Home<b>记工</b></div>
+<div class="phone">
+ <div class="statusbar"><span>9:41</span><span class="r">▮▮▮ 5G ⚡︎</span></div>
+ <div class="bigtitle"><div class="bt">记工</div><div class="sub">2026年10月 · 梅花项目</div></div>
+ <div class="body">
+  <div class="hero"><span class="cap">本月累计</span>
+   <div class="hl">未结工资</div>
+   <div class="bignum">¥12,480</div>
+   <div class="hint">已出勤 14 天 · 加班 3 天</div></div>
+  <div class="tiles">
+   <div class="tile"><div class="tl">日薪</div><div class="tv">¥380<span class="u"></span></div></div>
+   <div class="tile"><div class="tl">出勤天数</div><div class="tv">14<span class="u"> 天</span></div></div>
+  </div>
+  <button class="cta">＋ 记一笔</button>
+  <div class="cal">
+   <div class="ch"><span class="m">2026 十月</span><span class="nav">‹ 今天 ›</span></div>
+   <div class="wk"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+   <div class="days" id="cal1"></div>
+  </div>
+  <div class="legend"><i class="r">出勤</i><i class="o">加班</i><i>休息</i></div>
+ </div>
+ <div class="tabbar">
+  <div class="tab on"><span class="ic">📅</span>记工</div>
+  <div class="tab"><span class="ic">📁</span>项目</div>
+  <div class="tab"><span class="ic">📊</span>统计</div>
+  <div class="tab"><span class="ic">🛠️</span>工具</div>
+  <div class="hi"></div>
+ </div>
+</div></div>
+
+<!-- 2 · 项目 -->
+<div class="pwrap"><div class="tag">02 · Projects<b>项目</b></div>
+<div class="phone">
+ <div class="statusbar"><span>9:41</span><span class="r">▮▮▮ 5G ⚡︎</span></div>
+ <div class="bigtitle"><div class="bt">项目</div><div class="sub">3 个工程 · 1 个进行中</div></div>
+ <div class="body">
+  <div class="group">
+   <div class="gh">进行中</div>
+   <div class="lrow"><span class="li blue">梅</span><div class="lc"><div class="t">梅花·新苑</div><div class="s">土建 · 日薪 ¥380</div></div><span class="val">¥12,480</span><span class="chev">›</span></div>
+   <div class="lrow"><span class="li purple">桂</span><div class="lc"><div class="t">桂苑二期</div><div class="s">水电 · 包工 ¥6/㎡</div></div><span class="val">¥3,200</span><span class="chev">›</span></div>
+  </div>
+  <div class="group">
+   <div class="gh">已结算</div>
+   <div class="lrow"><span class="li gray">莲</span><div class="lc"><div class="t">莲台工地</div><div class="s">2025 年已结清</div></div><span class="val">¥56,000</span><span class="chev">›</span></div>
+  </div>
+  <button class="cta ghost">＋ 新建项目</button>
+ </div>
+ <div class="tabbar">
+  <div class="tab"><span class="ic">📅</span>记工</div>
+  <div class="tab on"><span class="ic">📁</span>项目</div>
+  <div class="tab"><span class="ic">📊</span>统计</div>
+  <div class="tab"><span class="ic">🛠️</span>工具</div>
+  <div class="hi"></div>
+ </div>
+</div></div>
+
+<!-- 3 · 统计 -->
+<div class="pwrap"><div class="tag">03 · Reports<b>统计</b></div>
+<div class="phone">
+ <div class="statusbar"><span>9:41</span><span class="r">▮▮▮ 5G ⚡︎</span></div>
+ <div class="bigtitle"><div class="bt">统计</div><div class="sub">2026 年 10 月</div></div>
+ <div class="body">
+  <div class="chart"><div class="ct">每周出勤工时</div>
+   <div class="bars">
+    <div class="b" style="height:52%"><span>28h</span></div>
+    <div class="b on" style="height:88%"><span>46h</span></div>
+    <div class="b" style="height:64%"><span>34h</span></div>
+    <div class="b on" style="height:100%"><span>52h</span></div>
+    <div class="b" style="height:30%"><span>16h</span></div>
+   </div></div>
+  <div class="tiles">
+   <div class="tile"><div class="tl">月总收入</div><div class="tv">¥15,320</div></div>
+   <div class="tile"><div class="tl">月总支出</div><div class="tv" style="color:#FF3B30">¥4,840</div></div>
+  </div>
+  <div class="group">
+   <div class="gh">构成</div>
+   <div class="lrow"><span class="li blue">工</span><div class="lc"><div class="t">工资</div></div><span class="val">¥12,480</span></div>
+   <div class="lrow"><span class="li green">奖</span><div class="lc"><div class="t">奖金/补贴</div></div><span class="val">¥2,840</span></div>
+   <div class="lrow"><span class="li orange">支</span><div class="lc"><div class="t">借支</div></div><span class="val" style="color:#FF3B30">-¥4,840</span></div>
+  </div>
+ </div>
+ <div class="tabbar">
+  <div class="tab"><span class="ic">📅</span>记工</div>
+  <div class="tab"><span class="ic">📁</span>项目</div>
+  <div class="tab on"><span class="ic">📊</span>统计</div>
+  <div class="tab"><span class="ic">🛠️</span>工具</div>
+  <div class="hi"></div>
+ </div>
+</div></div>
+
+<!-- 4 · 录入 -->
+<div class="pwrap"><div class="tag">04 · Entry<b>记一笔</b></div>
+<div class="phone">
+ <div class="statusbar"><span>9:41</span><span class="r">▮▮▮ 5G ⚡︎</span></div>
+ <div class="bigtitle"><div class="bt">记一笔</div><div class="sub">梅花·新苑</div></div>
+ <div class="body">
+  <div class="group">
+   <div class="gh">工时</div>
+   <div class="lrow"><span class="li blue">日</span><div class="lc"><div class="t">出勤</div></div><span class="val">1 <span style="color:#86868B;font-weight:500">天</span></span></div>
+   <div class="lrow"><span class="li orange">加</span><div class="lc"><div class="t">加班</div></div><span class="val">0.5 <span style="color:#86868B;font-weight:500">天</span></span></div>
+   <div class="lrow"><span class="li green">休</span><div class="lc"><div class="t">休息</div></div><span class="val">0</span></div>
+  </div>
+  <div class="group">
+   <div class="gh">工资</div>
+   <div class="lrow"><span class="li gray">薪</span><div class="lc"><div class="t">日薪</div></div><span class="val">¥380</span></div>
+   <div class="lrow"><span class="li purple">备</span><div class="lc"><div class="t">备注</div><div class="s">打顶板、绑钢筋</div></div>
+  </div>
+  <div class="hero" style="margin-top:4px"><div class="hl">本次小计</div>
+   <div class="bignum">¥570<span class="u"></span></div><div class="hint">1.5 天 × ¥380</div></div>
+  <button class="cta">保存记录</button>
+ </div>
+ <div class="tabbar">
+  <div class="tab on"><span class="ic">＋</span>记一笔</div>
+  <div class="tab"><span class="ic">📁</span>项目</div>
+  <div class="tab"><span class="ic">📊</span>统计</div>
+  <div class="tab"><span class="ic">🛠️</span>工具</div>
+  <div class="hi"></div>
+ </div>
+</div></div>
+
+<!-- 5 · 工具 -->
+<div class="pwrap"><div class="tag">05 · Tools<b>工具</b></div>
+<div class="phone">
+ <div class="statusbar"><span>9:41</span><span class="r">▮▮▮ 5G ⚡︎</span></div>
+ <div class="bigtitle"><div class="bt">工具</div><div class="sub">备份与结算</div></div>
+ <div class="body">
+  <div class="group">
+   <div class="gh">数据</div>
+   <div class="lrow"><span class="li blue">☁️</span><div class="lc"><div class="t">云备份</div><div class="s">腾讯云 COS</div></div><span class="chev">›</span></div>
+   <div class="lrow"><span class="li green">⬇️</span><div class="lc"><div class="t">导出 JSON</div></div><span class="chev">›</span></div>
+   <div class="lrow"><span class="li orange">📄</span><div class="lc"><div class="t">导出 PDF 报表</div></div><span class="chev">›</span></div>
+  </div>
+  <div class="group">
+   <div class="gh">结算</div>
+   <div class="lrow"><span class="li purple">¥</span><div class="lc"><div class="t">本月结算</div><div class="s">生成工资单</div></div><span class="val">¥15,320</span><span class="chev">›</span></div>
+   <div class="lrow"><span class="li gray">📷</span><div class="lc"><div class="t">工地拍照</div></div><span class="chev">›</span></div>
+  </div>
+  <div class="group">
+   <div class="gh">关于</div>
+   <div class="lrow"><span class="li gray">ℹ️</span><div class="lc"><div class="t">版本</div></div><span class="val" style="color:#86868B;font-weight:500">v1.1.19</span></div>
+   <div class="lrow"><span class="li blue">💬</span><div class="lc"><div class="t">格格记工</div><div class="s">工人记工记账助手</div></div></div>
+  </div>
+ </div>
+ <div class="tabbar">
+  <div class="tab"><span class="ic">📅</span>记工</div>
+  <div class="tab"><span class="ic">📁</span>项目</div>
+  <div class="tab"><span class="ic">📊</span>统计</div>
+  <div class="tab on"><span class="ic">🛠️</span>工具</div>
+  <div class="hi"></div>
+ </div>
+</div></div>
+
+</div></div>
+
+<script>
+function fillCal(id){
+ var el=document.getElementById(id); if(!el)return;
+ var html="";
+ // Oct 2026: Oct 1 is Thursday -> start col index: week starts Monday. Oct1 2026 = Thu, so 4 blanks
+ for(var i=0;i<4;i++) html+='<span class="d empty"></span>';
+ var marks={2:'work',3:'work',5:'rest',6:'work',7:'work',8:'work',9:'work',11:'work',12:'work',13:'work',14:'today',15:'work',16:'off',18:'work',19:'work',20:'work',21:'work',22:'rest',24:'work',25:'work',27:'work',28:'work'};
+ for(var d=1;d<=31;d++){
+  var cls="d";
+  if(marks[d]==="today")cls+=" today";
+  else if(marks[d]==="work")cls+=" work";
+  else if(marks[d]==="off")cls+=" off";
+  else if(marks[d]==="rest")cls+=" rest";
+  var dot=(marks[d])?"<span class='dot'></span>":"";
+  html+='<span class="'+cls+'">'+d+dot+'</span>';
+ }
+ el.innerHTML=html;
+}
+fillCal("cal1");
+</script>
+</body></html>

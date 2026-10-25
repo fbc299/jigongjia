@@ -789,6 +789,7 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
     }
     // Save rates for next time（S1：键带 projectId，避免 A 项目单价污染 B 项目）
     final prefs = await _ensurePrefs();
+    if (!ctx.mounted) return;
     if (_workType == WorkType.point) {
       prefs.setDouble(_rateKey('daily'), _p(_dailyRateCtrl.text));
       prefs.setDouble(_rateKey('overtime'), _p(_overtimeRateCtrl.text));

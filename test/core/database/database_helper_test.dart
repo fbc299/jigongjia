@@ -15,7 +15,8 @@ void main() {
     });
 
     test('should have correct database version', () {
-      expect(AppConstants.dbVersion, 1);
+      // v2：work_records 增加 UNIQUE(projectId, date)（S3 同日记工护栏）
+      expect(AppConstants.dbVersion, 2);
     });
 
     test('should define all required table names', () {

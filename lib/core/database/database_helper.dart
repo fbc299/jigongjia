@@ -8,6 +8,9 @@ class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._();
   static Database? _database;
 
+  /// work_records 同日唯一索引名（_onCreate 与 v2 迁移共用同一个定义）
+  static const String _idxWorkRecordDay = 'idx_work_records_project_date';
+
   Future<Database> get database async {
     try {
       if (_database != null) return _database!;
@@ -27,6 +30,7 @@ class DatabaseHelper {
         path,
         version: AppConstants.dbVersion,
         onCreate: _onCreate,
+        onUpgrade: _onUpgrade,
         onConfigure: (db) async {
           await db.rawQuery('PRAGMA journal_mode=WAL');
           await db.rawQuery('PRAGMA foreign_keys=ON');
@@ -145,6 +149,11 @@ class DatabaseHelper {
     await db.execute(
       'CREATE INDEX idx_work_records_date ON ${AppConstants.tableWorkRecords} (date)',
     );
+    // 同一项目同一天只允许一条记工记录（S3：防同日重复记工导致工资重复累计）。
+    // 与 _onUpgrade 中的 v2 迁移保持完全一致，否则新装用户拿不到该约束。
+    await db.execute(
+      'CREATE UNIQUE INDEX $_idxWorkRecordDay ON ${AppConstants.tableWorkRecords} (projectId, date)',
+    );
     await db.execute(
       'CREATE INDEX idx_borrow_records_project ON ${AppConstants.tableBorrowRecords} (projectId)',
     );
@@ -163,6 +172,127 @@ class DatabaseHelper {
     } catch (e) {
       debugPrint('创建数据库表失败: $e');
       rethrow;
+    }
+  }
+
+  /// 数据库升级入口。
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    try {
+      if (oldVersion < 2) {
+        await _migrateToV2DailyUnique(db);
+      }
+    } catch (e) {
+      debugPrint('升级数据库失败: $e');
+      rethrow;
+    }
+  }
+
+  /// v1 → v2：给 work_records 加 UNIQUE(projectId, date)（同日只允许一条记工）。
+  ///
+  /// 老库里有两类数据必须先处理，否则 CREATE UNIQUE INDEX 抛错 → openDatabase 失败
+  /// → App 直接打不开：
+  /// 1) `date` 存的是带时分的时间戳（旧版直接写 DateTime.now()），同日多条因此能共存；
+  /// 2) 同一项目同一天确实存在多条记录（S3 重复记工）。
+  /// 处理策略：日期归一到本地 0 点 → 同日多条合并为一条（工天/加班/数量/金额累加、
+  /// 备注拼接、照片引用改挂主记录）→ 建唯一索引。
+  Future<void> _migrateToV2DailyUnique(Database db) async {
+    // 1) 日期归一化到本地当天 0 点
+    final rows = await db.query(
+      AppConstants.tableWorkRecords,
+      columns: ['id', 'date'],
+    );
+    for (final row in rows) {
+      final oldMs = (row['date'] as num?)?.toInt();
+      if (oldMs == null) continue;
+      final dt = DateTime.fromMillisecondsSinceEpoch(oldMs);
+      final newMs = DateTime(dt.year, dt.month, dt.day).millisecondsSinceEpoch;
+      if (newMs != oldMs) {
+        await db.update(
+          AppConstants.tableWorkRecords,
+          {'date': newMs},
+          where: 'id = ?',
+          whereArgs: [row['id']],
+        );
+      }
+    }
+
+    // 2) 合并同项目同一天的多条记录：保留一条为主记录，其余累加后删除
+    final groups = await db.rawQuery('''
+      SELECT projectId, date, COUNT(*) AS c
+      FROM ${AppConstants.tableWorkRecords}
+      GROUP BY projectId, date
+      HAVING c > 1
+    ''');
+    for (final g in groups) {
+      final projectId = g['projectId'] as String;
+      final dateMs = (g['date'] as num).toInt();
+      final dups = await db.query(
+        AppConstants.tableWorkRecords,
+        where: 'projectId = ? AND date = ?',
+        whereArgs: [projectId, dateMs],
+        orderBy: 'createdAt ASC, id ASC',
+      );
+      if (dups.length < 2) continue;
+      // 主记录优先取「非休息日」的那条（休息日金额恒为 0，合并后语义更贴近实际）
+      final base = dups.firstWhere(
+        (m) => (m['isRest'] as num?)?.toInt() != 1,
+        orElse: () => dups.first,
+      );
+      final others = dups.where((m) => m['id'] != base['id']).toList();
+      double sum(String key) => others.fold<double>(
+            0,
+            (acc, m) => acc + ((m[key] as num?)?.toDouble() ?? 0),
+          );
+      double own(String key) => (base[key] as num?)?.toDouble() ?? 0;
+
+      final mergedNotes = <String>[
+        if (((base['note'] as String?) ?? '').isNotEmpty) base['note'] as String,
+        for (final m in others)
+          if (((m['note'] as String?) ?? '').isNotEmpty) m['note'] as String,
+      ];
+
+      await db.update(
+        AppConstants.tableWorkRecords,
+        {
+          'days': own('days') + sum('days'),
+          'overtimeHours': own('overtimeHours') + sum('overtimeHours'),
+          'packageDays': own('packageDays') + sum('packageDays'),
+          'quantity': own('quantity') + sum('quantity'),
+          'totalWage': own('totalWage') + sum('totalWage'),
+          'note': mergedNotes.toSet().join(' / '),
+        },
+        where: 'id = ?',
+        whereArgs: [base['id']],
+      );
+
+      for (final m in others) {
+        // 照片引用改挂主记录，避免 ON DELETE SET NULL 丢失关联
+        await db.update(
+          AppConstants.tablePhotoEvidence,
+          {'workRecordId': base['id']},
+          where: 'workRecordId = ?',
+          whereArgs: [m['id']],
+        );
+        await db.delete(
+          AppConstants.tableWorkRecords,
+          where: 'id = ?',
+          whereArgs: [m['id']],
+        );
+      }
+      debugPrint(
+        '迁移合并同日重复记工: project=$projectId date=$dateMs ${dups.length} 条 → 1 条',
+      );
+    }
+
+    // 3) 建唯一索引。极端情况下若仍有残留重复，不让它挡住启动（否则用户彻底打不开 App），
+    //    记日志降级；上层 UI 仍有「同日已记则转编辑」的兜底。
+    try {
+      await db.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS $_idxWorkRecordDay '
+        'ON ${AppConstants.tableWorkRecords} (projectId, date)',
+      );
+    } catch (e) {
+      debugPrint('创建 work_records 同日唯一索引失败（已跳过）: $e');
     }
   }
 

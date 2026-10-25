@@ -548,7 +548,10 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
     );
   }
 
-  void _openWorkForm(DateTime date, {WorkRecord? existingRecord}) {
+  /// 防止连点 FAB/「记工」按钮一次弹出多个表单（同日唯一约束下第二个保存必然冲突）
+  bool _formOpening = false;
+
+  Future<void> _openWorkForm(DateTime date, {WorkRecord? existingRecord}) async {
     // 未到日期禁止编辑
     if (_isFuture(date)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -556,21 +559,41 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
       );
       return;
     }
-    Navigator.of(context)
-        .push(
-      MaterialPageRoute(
-        builder: (_) => _WorkFormSheet(
-          projectId: widget.projectId,
-          project: widget.project,
-          date: date,
-          existingRecord: existingRecord,
+    // 连点保护：避免同一秒弹出两个表单，各存一条同日记录
+    if (_formOpening) return;
+
+    var target = existingRecord;
+    // S3: 新增前用 getRecordsByDate 判重（此前全项目 0 调用）。同一天只允许一条记工，
+    // 已存在则直接转为编辑，否则再叠一条会让工资翻倍，而日历只显示一条、界面看不出错。
+    if (target == null) {
+      final sameDay = context
+          .read<WorkProvider>()
+          .getRecordsByDate(widget.projectId, date);
+      if (sameDay.isNotEmpty) {
+        target = sameDay.first;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('当天已有记工记录，已转为编辑该记录')),
+        );
+      }
+    }
+
+    _formOpening = true;
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => _WorkFormSheet(
+            projectId: widget.projectId,
+            project: widget.project,
+            date: date,
+            existingRecord: target,
+          ),
         ),
-      ),
-    )
-        .then((_) {
+      );
+    } finally {
+      _formOpening = false;
       // Force rebuild to refresh calendar markers
-      setState(() {});
-    });
+      if (mounted) setState(() {});
+    }
   }
 }
 
@@ -740,7 +763,9 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
     final record = WorkRecord(
       id: widget.existingRecord?.id,
       projectId: widget.projectId,
-      date: widget.date,
+      // 日期归一到当天 0 点：work_records 有 UNIQUE(projectId, date)（S3），
+      // 若带时分，同一天的记录会落在不同 date 值上，唯一约束形同虚设。
+      date: DateTime(widget.date.year, widget.date.month, widget.date.day),
       type: _workType,
       days: (_workType == WorkType.point && !_isRest) ? _days : 0,
       dailyRate: (_workType == WorkType.point && !_isRest) ? _p(_dailyRateCtrl.text) : 0,
@@ -808,6 +833,13 @@ class _WorkFormSheetState extends State<_WorkFormSheet> {
         );
       }
     }
+    } on StateError catch (e) {
+      // provider 已把「同日唯一约束冲突」翻译成中文提示（StateError），直接展示
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
     } catch (e) {
       if (ctx.mounted) {
         ScaffoldMessenger.of(ctx).showSnackBar(

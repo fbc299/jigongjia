@@ -39,34 +39,57 @@ class WorkProvider extends ChangeNotifier {
 
   Future<void> addRecord(WorkRecord record) async {
     try {
+      // 日期归一到当天 0 点：work_records 上有 UNIQUE(projectId, date)（db v2），
+      // 带时分的时间戳会让「同一天」的两条记录落在不同 date 值上、绕过唯一约束（S3）。
+      final normalized = _normalizeDay(record);
       final db = await DatabaseHelper.instance.database;
+      // 用 abort 而不是 replace：replace 的 DELETE+INSERT 会绕过同日唯一约束，
+      // 把已存在的那条记工静默覆盖掉（金额悄悄变了却没有提示）。
       await db.insert(
         AppConstants.tableWorkRecords,
-        record.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
+        normalized.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.abort,
       );
-      _records.insert(0, record);
+      _records.insert(0, normalized);
       notifyListeners();
+    } on DatabaseException catch (e) {
+      debugPrint('添加工时记录失败: $e');
+      if (e.isUniqueConstraintError()) {
+        throw StateError('该日期已有记工记录，请直接编辑原记录');
+      }
+      rethrow;
     } catch (e) {
       debugPrint('添加工时记录失败: $e');
       rethrow;
     }
   }
 
+  /// 丢弃时分秒，只保留当天（本地时区），用于同日唯一约束比较
+  static WorkRecord _normalizeDay(WorkRecord r) => r.copyWith(
+        date: DateTime(r.date.year, r.date.month, r.date.day),
+      );
+
   Future<void> updateRecord(WorkRecord record) async {
     try {
+      final normalized = _normalizeDay(record);
       final db = await DatabaseHelper.instance.database;
       await db.update(
         AppConstants.tableWorkRecords,
-        record.toMap(),
+        normalized.toMap(),
         where: 'id = ?',
-        whereArgs: [record.id],
+        whereArgs: [normalized.id],
       );
-      final index = _records.indexWhere((r) => r.id == record.id);
+      final index = _records.indexWhere((r) => r.id == normalized.id);
       if (index != -1) {
-        _records[index] = record;
+        _records[index] = normalized;
         notifyListeners();
       }
+    } on DatabaseException catch (e) {
+      debugPrint('更新工时记录失败: $e');
+      if (e.isUniqueConstraintError()) {
+        throw StateError('该日期已有记工记录，请直接编辑原记录');
+      }
+      rethrow;
     } catch (e) {
       debugPrint('更新工时记录失败: $e');
       rethrow;

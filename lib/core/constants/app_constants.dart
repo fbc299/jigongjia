@@ -2,7 +2,11 @@ class AppConstants {
   AppConstants._();
 
   static const String dbName = 'jigongjia.db';
-  static const int dbVersion = 1;
+
+  /// 数据库版本历史
+  /// v1: 初始结构
+  /// v2: work_records 增加 UNIQUE(projectId, date) —— 同一项目一天只允许一条记工（S3）
+  static const int dbVersion = 2;
 
   // Table names
   static const String tableProjects = 'projects';

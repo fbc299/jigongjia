@@ -1,0 +1,99 @@
+name: Build APK
+
+# 触发方式：
+#   1) 打 tag（v1.1.26 这种）→ 自动构建 + 建 GitHub Release 挂 APK
+#   2) 手动 workflow_dispatch → 只构建，产物在 Actions 的 Artifacts 里
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: 构建 arm64 + armv7
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 安装 Flutter 3.32.4
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.32.4'
+          channel: stable
+          cache: true
+
+      - name: 安装 Android SDK 36
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+          flutter doctor -v
+
+      - name: 拉依赖
+        run: flutter pub get
+
+      - name: 静态检查
+        run: flutter analyze --no-pub
+
+      - name: 单元测试
+        run: flutter test
+
+      - name: 校验 tag 与 pubspec 版本一致
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          VER=$(grep '^version:' pubspec.yaml | sed 's/version: *//' | cut -d'+' -f1)
+          TAG="${GITHUB_REF_NAME#v}"
+          if [ "$VER" != "$TAG" ]; then
+            echo "::error::tag $TAG 与 pubspec 版本 $VER 不一致，请先 bump pubspec 再打 tag"
+            exit 1
+          fi
+          echo "版本一致：$VER"
+
+      - name: 构建 release APK
+        run: |
+          flutter build apk --release --split-per-abi \
+            --target-platform android-arm,android-arm64 \
+            --build-name "$(grep '^version:' pubspec.yaml | sed 's/version: *//' | cut -d'+' -f1)" \
+            --build-number "$(grep '^version:' pubspec.yaml | sed 's/version: *//' | cut -d'+' -f2)"
+
+      - name: 重命名产物
+        run: |
+          VER=$(grep '^version:' pubspec.yaml | sed 's/version: *//' | cut -d'+' -f1)
+          mkdir -p out
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "out/格格记工_v${VER}_arm64.apk"
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk "out/格格记工_v${VER}_armv7.apk"
+          ls -lh out
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-${{ github.ref_name }}
+          path: out/*.apk
+          retention-days: 30
+
+      - name: 创建 / 更新 Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/*.apk
+          generate_release_notes: true
+          body: |
+            格格记工 ${{ github.ref_name }}
+
+            手机装 `arm64` 那个；装不上（老机型）再用 `armv7`。

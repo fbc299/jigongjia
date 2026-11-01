@@ -20,6 +20,7 @@ API:
 
 import argparse
 import configparser
+import contextlib
 import hmac
 import json
 import os
@@ -93,6 +94,19 @@ def _db() -> sqlite3.Connection:
     return conn
 
 
+@contextlib.contextmanager
+def _session():
+    """一次请求一个连接：提交后立刻 close，让 SQLite 能自动 checkpoint WAL。
+    旧写法 `with _db() as conn` 只提交不关闭，连接泄漏导致 WAL 涨到数 MB。"""
+    with _db_lock:
+        conn = _db()
+        try:
+            yield conn
+            conn.commit()
+        finally:
+            conn.close()
+
+
 def load_or_create_token(cli_token: str | None) -> str:
     if cli_token:
         TOKEN_FILE.write_text(cli_token)
@@ -152,7 +166,7 @@ def cos_presigned_link(name: str | None = None, expire: int = 3600) -> dict:
     if not cli:
         return {"ok": False, "error": "COS 镜像未启用"}
     if not name:
-        with _db_lock, _db() as conn:
+        with _session() as conn:
             row = conn.execute(
                 f"SELECT name FROM {TABLE} ORDER BY created_at DESC, name DESC LIMIT 1"
             ).fetchone()
@@ -223,7 +237,7 @@ class BackupHandler(BaseHTTPRequestHandler):
             return self._json(401, {"error": "未授权：token 无效"})
 
         if path == "/api/backups":
-            with _db_lock, _db() as conn:
+            with _session() as conn:
                 rows = conn.execute(
                     f"SELECT name, created_at, length(body) FROM {TABLE} "
                     "ORDER BY created_at DESC, name DESC"
@@ -233,7 +247,7 @@ class BackupHandler(BaseHTTPRequestHandler):
 
         if path.startswith("/api/backup/"):
             name = path[len("/api/backup/"):]
-            with _db_lock, _db() as conn:
+            with _session() as conn:
                 row = conn.execute(f"SELECT body FROM {TABLE} WHERE name=?", (name,)).fetchone()
             if not row:
                 return self._json(404, {"error": f"备份 {name} 不存在"})
@@ -278,54 +292,24 @@ class BackupHandler(BaseHTTPRequestHandler):
             name = _sanitize_backup_name(data.pop("__backup_name", None))
             now = datetime.now().isoformat(timespec="seconds")
             body_str = json.dumps(data, ensure_ascii=False)
-            SNAP_MAX = 10   # 保留最近 10 份快照
-            with _db_lock, _db() as conn:
-                # ── 快照机制：保留「这次记工之前」的备份为 .vNN 快照（文件名体现）──
-                src = conn.execute(
-                    f"SELECT name, body FROM {TABLE} WHERE name=?",
-                    (name,)).fetchone()
-                if src is None:
-                    src = conn.execute(
-                        f"SELECT name, body FROM {TABLE} "
-                        f"WHERE name NOT LIKE '%.v%.json' "
-                        "ORDER BY created_at DESC, name DESC LIMIT 1"
-                    ).fetchone()
-                olds = []
-                old_snaps = []
-                snap_upload = None   # (snap_name, body)，锁外镜像
-                if src:
-                    base = src[0]
-                    n = 0
-                    snap_name = f"{base[:-5]}.v{n:02d}.json"
-                    while conn.execute(f"SELECT 1 FROM {TABLE} WHERE name=?",
-                                       (snap_name,)).fetchone():
-                        n += 1
-                        snap_name = f"{base[:-5]}.v{n:02d}.json"
-                    conn.execute(
-                        f"INSERT INTO {TABLE} (name, body, created_at) VALUES (?,?,?)",
-                        (snap_name, src[1], now))
-                    snap_upload = (snap_name, src[1])
+            # 一次上传只落一条：同名覆盖（自动同步固定名），手动备份才带日期。
+            # 不再生成 .vNN 逐次快照 —— 数据库层已有每小时 GFS 快照（snapshot_backup.py），
+            # 逐次快照等于每次记工存 2 份全量数据，只会让 app 列表膨胀。
+            with _session() as conn:
                 conn.execute(
                     f"INSERT OR REPLACE INTO {TABLE} (name, body, created_at) VALUES (?,?,?)",
                     (name, body_str, now),
                 )
-                # 主备份保留最新 MAX_BACKUPS 份（不含快照），快照保留最新 SNAP_MAX 份
+                # 保留最新 MAX_BACKUPS 份（历史 .vNN 残留一并按时间淘汰）
                 olds = [r[0] for r in conn.execute(
-                    f"SELECT name FROM {TABLE} WHERE name NOT LIKE '%.v%.json' "
-                    f"ORDER BY created_at DESC, name DESC LIMIT -1 OFFSET ?",
+                    f"SELECT name FROM {TABLE} "
+                    "ORDER BY created_at DESC, name DESC LIMIT -1 OFFSET ?",
                     (MAX_BACKUPS,)).fetchall()]
-                old_snaps = [r[0] for r in conn.execute(
-                    f"SELECT name FROM {TABLE} WHERE name LIKE '%.v%.json' "
-                    f"ORDER BY name DESC LIMIT -1 OFFSET ?",
-                    (SNAP_MAX,)).fetchall()]
-                if olds + old_snaps:
+                if olds:
                     conn.executemany(f"DELETE FROM {TABLE} WHERE name=?",
-                                     [(o,) for o in olds + old_snaps])
+                                     [(o,) for o in olds])
             # 镜像到腾讯云 COS（锁外，尽力而为，失败不阻断主备份）
-            if snap_upload:
-                cos_mirroring_upload(snap_upload[0], snap_upload[1])
-            # 清理被挤掉的主备份与旧快照在 COS 的副本
-            for o in olds + old_snaps:
+            for o in olds:
                 cos_mirroring_delete(o)
             # 主备份镜像到腾讯云 COS
             cos_ok = cos_mirroring_upload(name, body_str)
@@ -347,7 +331,7 @@ class BackupHandler(BaseHTTPRequestHandler):
             name = path[len("/api/backup/"):]
             if "/" in name or "\\" in name or ".." in name:
                 return self._json(400, {"error": "无效的文件名"})
-            with _db_lock, _db() as conn:
+            with _session() as conn:
                 cur = conn.execute(f"DELETE FROM {TABLE} WHERE name=?", (name,))
             if cur.rowcount == 0:
                 return self._json(404, {"error": f"备份 {name} 不存在"})
@@ -366,7 +350,7 @@ def main():
 
     master = load_or_create_token(args.token)
     BackupHandler.master_token = master
-    with _db() as conn:
+    with _session() as conn:
         pass  # 建表
 
     server = HTTPServer(("127.0.0.1", args.port), BackupHandler)

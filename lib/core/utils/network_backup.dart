@@ -41,6 +41,19 @@ class BackupUploadResult {
 
 /// Network backup via NAS backup server (IPv6 direct, no DNS needed)
 /// Enhanced with retry (exponential backoff) and progress callbacks.
+/// 服务器拒绝访问：本机没有备份口令，或口令被换掉了。
+/// 卸载重装、清除数据都会把 Keystore 里的口令一起清掉，但服务器上的备份还在，
+/// 重新填入口令即可恢复——所以这里必须抛明确异常，不能当成「没有备份」。
+class BackupAuthException implements Exception {
+  final String message;
+  const BackupAuthException([
+    this.message = '本机没有备份口令，或口令已失效（服务器上的备份仍在）',
+  ]);
+
+  @override
+  String toString() => message;
+}
+
 class NetworkBackupService {
   static const _prefUrl = 'backup_server_url';
   static const _prefToken = 'backup_server_token';
@@ -303,6 +316,7 @@ class NetworkBackupService {
         debugPrint('[NetworkBackup] 列表获取成功: ${items.length} 条');
         return items;
       }
+      if (resp.statusCode == 401) throw const BackupAuthException();
       throw Exception('获取列表失败: HTTP ${resp.statusCode}');
     });
     } catch (e) {
@@ -329,6 +343,7 @@ class NetworkBackupService {
         debugPrint('[NetworkBackup] 下载成功: ${resp.body.length} 字节');
         return _unpack(resp.body);
       }
+      if (resp.statusCode == 401) throw const BackupAuthException();
       throw Exception('下载失败: HTTP ${resp.statusCode}');
     });
     } catch (e) {

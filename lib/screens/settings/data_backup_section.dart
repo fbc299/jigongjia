@@ -673,6 +673,7 @@ class _NetworkBackupSectionState extends State<NetworkBackupSection> {
   List<Map<String, dynamic>> _backups = [];
   Map<String, dynamic>? _cosLink;
   bool _cosBusy = false;
+  String? _listError;
 
   @override
   void initState() {
@@ -684,7 +685,13 @@ class _NetworkBackupSectionState extends State<NetworkBackupSection> {
     await _service.load();
     final ok = await _service.ping();
     if (ok) {
-      try { _backups = await _service.list(); } catch (_) {}
+      try {
+        _backups = await _service.list();
+        _listError = null;
+      } catch (e) {
+        _backups = [];
+        _listError = e is BackupAuthException ? e.message : '读取备份列表失败：$e';
+      }
       // 预签名链接改为按需生成：进页面不再自动签名，避免长期免鉴权链接躺在屏幕上
     }
     if (mounted) setState(() { _loading = false; _connected = ok; });
@@ -721,9 +728,41 @@ class _NetworkBackupSectionState extends State<NetworkBackupSection> {
         ListTile(
           leading: const Icon(Icons.cloud_upload),
           title: const Text('上传备份'),
-          subtitle: Text(_connected ? '当前共 ${_backups.length} 个备份' : '请先连接服务器'),
+          subtitle: Text(_connected
+              ? (_listError != null ? '云端备份列表读取失败' : '当前共 ${_backups.length} 个备份')
+              : '请先连接服务器'),
           onTap: _connected ? _upload : null,
         ),
+        if (_listError != null)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.warning_amber_rounded, size: 20, color: Colors.orange),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_listError!, style: const TextStyle(fontSize: 13)),
+                      const SizedBox(height: 2),
+                      const Text(
+                        '口令存在系统安全区，卸载重装或清除数据会一起被清掉；服务器上的备份不会丢，填回口令即可恢复。',
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton(onPressed: _showSettings, child: const Text('填写口令')),
+              ],
+            ),
+          ),
         // 腾讯云存储桶预签名下载链接卡片（可复制 + 临期自动刷新）
         _buildCosLinkCard(),
         if (_backups.isNotEmpty) ...[

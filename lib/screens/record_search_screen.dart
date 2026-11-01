@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../core/theme/app_theme.dart';
 import '../core/utils/privacy_service.dart';
+import '../core/utils/work_record_csv.dart';
 import '../core/utils/work_stats.dart';
+import '../models/project.dart';
 import '../models/work_record.dart';
 import '../providers/project_provider.dart';
 import '../providers/work_provider.dart';
@@ -115,25 +118,67 @@ class _RecordSearchScreenState extends State<RecordSearchScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final workProvider = context.watch<WorkProvider>();
-    final projects = context.watch<ProjectProvider>().projects;
-    final nameById = <String, String>{for (final p in projects) p.id: p.name};
-    final hidden = PrivacyService().isHidden.value;
+  List<WorkRecord> _filteredRecords(List<Project> projects, Map<String, String> nameById) {
     final range = _effectiveRange();
-
-    final results = workProvider.records
+    final list = context
+        .read<WorkProvider>()
+        .records
         .where((r) => _matches(r, nameById[r.projectId] ?? '', range))
         .toList()
       ..sort((a, b) => b.date.compareTo(a.date));
+    return list;
+  }
+
+  Future<void> _exportCsv(List<WorkRecord> records, Map<String, String> nameById) async {
+    if (records.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('当前筛选没有记录，无法导出')),
+      );
+      return;
+    }
+    try {
+      final path = await WorkRecordCsv.writeToTempFile(
+        records: records,
+        projectNames: nameById,
+      );
+      await Share.shareXFiles(
+        [XFile(path, mimeType: 'text/csv')],
+        subject: '格格记工 记录导出',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('导出失败: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // watch 让记录变更时自动重算（实际读取在 _filteredRecords 里）
+    context.watch<WorkProvider>();
+    final projects = context.watch<ProjectProvider>().projects;
+    final nameById = <String, String>{for (final p in projects) p.id: p.name};
+    final hidden = PrivacyService().isHidden.value;
+
+    final results = _filteredRecords(projects, nameById);
 
     final totalDays = sumWorkDays(results.where((r) => !r.isRest).toList());
     final totalWage = results.fold<double>(0, (s, r) => s + r.totalWage);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('查记录')),
+      appBar: AppBar(
+        title: const Text('查记录'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.ios_share),
+            tooltip: '导出当前结果为 CSV',
+            onPressed: () => _exportCsv(results, nameById),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(

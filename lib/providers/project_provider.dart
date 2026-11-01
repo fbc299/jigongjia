@@ -140,8 +140,10 @@ class ProjectProvider extends ChangeNotifier {
   Future<void> deleteProject(String id) async {
     try {
       // 先记下这个项目的照片文件，DB 行删掉后就没法再查了
-      final photoPaths =
-          _photo?.getPhotosByProject(id).map((p) => p.filePath).toList() ?? const <String>[];
+      final projectPhotos = _photo?.getPhotosByProject(id) ?? const [];
+      final photoPaths = <String>[
+        for (final p in projectPhotos) ...[p.filePath, p.thumbPath],
+      ];
       final db = await DatabaseHelper.instance.database;
       await db.delete(
         AppConstants.tableProjects,

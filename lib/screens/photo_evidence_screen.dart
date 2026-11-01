@@ -8,6 +8,7 @@ import '../providers/photo_evidence_provider.dart';
 import '../providers/project_provider.dart';
 import '../models/photo_evidence.dart';
 import '../core/utils/watermark_util.dart';
+import '../core/utils/photo_files.dart';
 
 class PhotoEvidenceScreen extends StatefulWidget {
   final String? projectId;
@@ -23,10 +24,28 @@ class _PhotoEvidenceScreenState extends State<PhotoEvidenceScreen> {
   String? _projectId;
   bool _isProcessing = false;
 
+  bool _thumbsBackfilled = false;
+
   @override
   void initState() {
     super.initState();
     _projectId = widget.projectId;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _backfillMissingThumbs());
+  }
+
+  /// 老版本存的照片没有缩略图，进页面时补一次（最多 50 张，避免一次跑太久）。
+  Future<void> _backfillMissingThumbs() async {
+    if (_thumbsBackfilled || !mounted) return;
+    _thumbsBackfilled = true;
+    final provider = context.read<PhotoEvidenceProvider>();
+    final missing =
+        provider.photos.where((p) => p.thumbPath.isEmpty).take(50).toList();
+    for (final photo in missing) {
+      final thumb = await generateThumbnail(photo.filePath);
+      if (thumb.isNotEmpty) {
+        await provider.updateThumbPath(photo.id, thumb);
+      }
+    }
   }
 
   @override
@@ -133,7 +152,7 @@ class _PhotoEvidenceScreenState extends State<PhotoEvidenceScreen> {
             AspectRatio(
               aspectRatio: 16 / 9,
               child: Image.file(
-                File(photo.filePath),
+                File(displayPhotoPath(photo.filePath, photo.thumbPath)),
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -201,9 +220,13 @@ class _PhotoEvidenceScreenState extends State<PhotoEvidenceScreen> {
         now,
       );
 
+      // 列表用的 400px 缩略图（原图 1920px，直接进列表会掉帧）
+      final thumbPath = await generateThumbnail(watermarkedPath);
+
       final photoEvidence = PhotoEvidence(
         projectId: _projectId!,
         filePath: watermarkedPath,
+        thumbPath: thumbPath,
         projectName: project.name,
         timestamp: now,
       );
@@ -263,11 +286,8 @@ class _PhotoEvidenceScreenState extends State<PhotoEvidenceScreen> {
       try {
         await provider.deletePhoto(photo.id);
 
-        // Also delete the file
-        final file = File(photo.filePath);
-        if (await file.exists()) {
-          await file.delete();
-        }
+        // 原图和缩略图都要删，否则缩略图会永久残留
+        await deletePhotoFiles([photo.filePath, photo.thumbPath]);
       } catch (e) {
         if (ctx.mounted) {
           ScaffoldMessenger.of(ctx).showSnackBar(

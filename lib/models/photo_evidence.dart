@@ -7,6 +7,8 @@ class PhotoEvidence {
   final String projectId;
   final String? workRecordId;
   final String filePath;
+  /// 列表用的缩略图路径（400px）。老数据为空串时回退到原图。
+  final String thumbPath;
   final String projectName;
   final DateTime timestamp;
   final DateTime createdAt;
@@ -16,6 +18,7 @@ class PhotoEvidence {
     required this.projectId,
     this.workRecordId,
     required this.filePath,
+    this.thumbPath = '',
     required this.projectName,
     required this.timestamp,
     DateTime? createdAt,
@@ -28,6 +31,7 @@ class PhotoEvidence {
       'projectId': projectId,
       'workRecordId': workRecordId,
       'filePath': filePath,
+      'thumbPath': thumbPath,
       'projectName': projectName,
       'timestamp': timestamp.millisecondsSinceEpoch,
       'createdAt': createdAt.millisecondsSinceEpoch,
@@ -40,6 +44,7 @@ class PhotoEvidence {
       projectId: map['projectId'] as String,
       workRecordId: map['workRecordId'] as String?,
       filePath: map['filePath'] as String,
+      thumbPath: (map['thumbPath'] as String?) ?? '',
       projectName: map['projectName'] as String,
       timestamp: DateTime.fromMillisecondsSinceEpoch(map['timestamp'] as int),
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt'] as int),
@@ -50,6 +55,7 @@ class PhotoEvidence {
     String? projectId,
     String? workRecordId,
     String? filePath,
+    String? thumbPath,
     String? projectName,
     DateTime? timestamp,
   }) {
@@ -58,6 +64,7 @@ class PhotoEvidence {
       projectId: projectId ?? this.projectId,
       workRecordId: workRecordId ?? this.workRecordId,
       filePath: filePath ?? this.filePath,
+      thumbPath: thumbPath ?? this.thumbPath,
       projectName: projectName ?? this.projectName,
       timestamp: timestamp ?? this.timestamp,
       createdAt: createdAt,

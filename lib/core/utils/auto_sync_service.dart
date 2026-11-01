@@ -55,9 +55,11 @@ class AutoSyncService {
         'expenses': expense.expenses.map((e) => e.toMap()).toList(),
         'notes': note.notes.map((n) => n.toMap()).toList(),
         // 只传文件名，不带设备绝对路径（换机能还原，也不泄露目录结构）
-        'photoEvidence': photo.photos
-            .map((p) => {...p.toMap(), 'filePath': backupPhotoPath(p.filePath)})
-            .toList(),
+        'photoEvidence': photo.photos.map((p) => {
+              ...p.toMap(),
+              'filePath': backupPhotoPath(p.filePath),
+              'thumbPath': p.thumbPath.isEmpty ? '' : backupPhotoPath(p.thumbPath),
+            }).toList(),
       });
       final result = await service.upload(data, backupName: name);
       if (result.serverOk) _lastSyncAt = DateTime.now();

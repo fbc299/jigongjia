@@ -64,6 +64,26 @@ class PhotoEvidenceProvider extends ChangeNotifier {
     }
   }
 
+  /// 老数据补缩略图：把 thumbPath 写回 DB 与内存（生成任务由调用方完成）。
+  Future<void> updateThumbPath(String id, String thumbPath) async {
+    try {
+      final db = await DatabaseHelper.instance.database;
+      await db.update(
+        AppConstants.tablePhotoEvidence,
+        {'thumbPath': thumbPath},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      final index = _photos.indexWhere((p) => p.id == id);
+      if (index >= 0) {
+        _photos[index] = _photos[index].copyWith(thumbPath: thumbPath);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('更新缩略图路径失败: $e');
+    }
+  }
+
   Future<void> deletePhoto(String id) async {
     try {
       final db = await DatabaseHelper.instance.database;

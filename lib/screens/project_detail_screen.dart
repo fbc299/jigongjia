@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:jigongjia/core/utils/photo_files.dart';
 import 'package:jigongjia/core/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:jigongjia/core/utils/privacy_service.dart';
@@ -720,7 +721,7 @@ class _PhotoTab extends StatelessWidget {
             return ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.file(
-                File(photo.filePath),
+                File(displayPhotoPath(photo.filePath, photo.thumbPath)),
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stack) => Container(
                   color: Colors.grey[200],

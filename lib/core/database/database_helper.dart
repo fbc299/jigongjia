@@ -112,6 +112,7 @@ class DatabaseHelper {
         projectId TEXT NOT NULL,
         workRecordId TEXT,
         filePath TEXT NOT NULL,
+        thumbPath TEXT NOT NULL DEFAULT '',
         projectName TEXT NOT NULL,
         timestamp INTEGER NOT NULL,
         createdAt INTEGER NOT NULL,
@@ -181,9 +182,27 @@ class DatabaseHelper {
       if (oldVersion < 2) {
         await _migrateToV2DailyUnique(db);
       }
+      if (oldVersion < 3) {
+        await _migrateToV3PhotoThumb(db);
+      }
     } catch (e) {
       debugPrint('升级数据库失败: $e');
       rethrow;
+    }
+  }
+
+  /// v2 → v3：photo_evidence 增加 thumbPath（列表用 400px 缩略图）。
+  /// 老数据留空串，展示时回退到原图，不需要回填。
+  Future<void> _migrateToV3PhotoThumb(Database db) async {
+    final columns = await db.rawQuery(
+      'PRAGMA table_info(${AppConstants.tablePhotoEvidence})',
+    );
+    final hasColumn = columns.any((c) => c['name'] == 'thumbPath');
+    if (!hasColumn) {
+      await db.execute(
+        "ALTER TABLE ${AppConstants.tablePhotoEvidence} "
+        "ADD COLUMN thumbPath TEXT NOT NULL DEFAULT ''",
+      );
     }
   }
 

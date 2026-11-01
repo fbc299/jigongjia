@@ -603,6 +603,13 @@ class _DataManagementSection extends StatelessWidget {
         subject: '格格记工数据备份',
       );
 
+      // 分享出去后本机这份明文备份没有留存价值，2 分钟后删掉（给分享目标读取留时间）
+      Timer(const Duration(minutes: 2), () async {
+        try {
+          if (await file.exists()) await file.delete();
+        } catch (_) {}
+      });
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('备份已生成')),
@@ -692,7 +699,7 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
   bool _connected = false;
   List<Map<String, dynamic>> _backups = [];
   Map<String, dynamic>? _cosLink;
-  Timer? _cosTimer;
+  bool _cosBusy = false;
 
   @override
   void initState() {
@@ -700,21 +707,12 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
     _init();
   }
 
-  @override
-  void dispose() {
-    _cosTimer?.cancel();
-    super.dispose();
-  }
-
   Future<void> _init() async {
     await _service.load();
     final ok = await _service.ping();
     if (ok) {
       try { _backups = await _service.list(); } catch (_) {}
-      await _fetchCosLink();
-      // 每 30s 检查一次，临期(<1min)自动换新 presigned 链接
-      _cosTimer?.cancel();
-      _cosTimer = Timer.periodic(const Duration(seconds: 30), (_) => _maybeRefreshCosLink());
+      // 预签名链接改为按需生成：进页面不再自动签名，避免长期免鉴权链接躺在屏幕上
     }
     if (mounted) setState(() { _loading = false; _connected = ok; });
   }
@@ -798,23 +796,23 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
   }
 
   // ─── 腾讯云 COS 预签名下载链接 ───
+  /// 只在用户明确点击时签名，有效期 5 分钟（默认曾是 1 小时且自动刷新）。
+  /// 这个链接**不需要 token** 就能下载全量明文备份，所以不能自己冒出来。
   Future<void> _fetchCosLink() async {
-    if (!_connected) return;
+    if (!_connected || _cosBusy) return;
+    setState(() => _cosBusy = true);
     try {
-      final r = await _service.getCosLink();
+      final r = await _service.getCosLink(expire: 300);
       if (mounted) setState(() => _cosLink = r);
-    } catch (_) {}
+    } catch (_) {
+      // 生成失败保持原状
+    } finally {
+      if (mounted) setState(() => _cosBusy = false);
+    }
   }
 
-  /// 每 30s 由定时器调用：当前链接临期(剩余<60s)才换新，避免频繁换签名。
-  void _maybeRefreshCosLink() {
-    final l = _cosLink;
-    if (l == null) { _fetchCosLink(); return; }
-    if (l['ok'] != true) return;
-    final expiresAt = (l['expires_at'] as num?)?.toInt();
-    if (expiresAt == null) return;
-    final remainSec = expiresAt - DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    if (remainSec < 60) { _fetchCosLink(); }
+  void _clearCosLink() {
+    if (mounted) setState(() => _cosLink = null);
   }
 
   Future<void> _copyCosLink() async {
@@ -859,7 +857,7 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
                   ),
                 ),
                 Text(
-                  ok ? remainText : '未获取',
+                  ok ? remainText : (_cosBusy ? '生成中…' : '未生成'),
                   style: const TextStyle(
                       fontSize: 11, color: Colors.grey),
                 ),
@@ -871,7 +869,19 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
               ],
             ),
           ),
-          if (url.isNotEmpty)
+          if (url.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _connected ? _fetchCosLink : null,
+                  icon: const Icon(Icons.link, size: 16),
+                  label: const Text('生成下载链接（5 分钟有效）'),
+                ),
+              ),
+            )
+          else
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 0, 6, 10),
               child: Row(
@@ -900,6 +910,11 @@ class _NetworkBackupSectionState extends State<_NetworkBackupSection> {
                     icon: const Icon(Icons.copy_all, size: 18),
                     tooltip: '复制链接',
                     onPressed: _copyCosLink,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    tooltip: '清除链接',
+                    onPressed: _clearCosLink,
                   ),
                 ],
               ),

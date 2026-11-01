@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'backup_crypto.dart';
+
 /// Progress callback: reports 0.0 ~ 1.0 during upload/download operations.
 typedef ProgressCallback = void Function(double progress);
 
@@ -52,7 +54,10 @@ class NetworkBackupService {
   Future<void> load() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      _serverUrl = prefs.getString(_prefUrl) ?? _defaultUrl;
+      final savedUrl = prefs.getString(_prefUrl) ?? _defaultUrl;
+      // 设置页保存时校验过 scheme，但 prefs 可以被旧版本/别的代码写脏，
+      // 这里再验一次：非法地址回退默认值并清空口令，避免把 token 发给任意主机。
+      _serverUrl = _isAcceptableUrl(savedUrl) ? savedUrl : _defaultUrl;
       _token = prefs.getString(_prefToken) ?? _defaultToken;
     } catch (e) {
       debugPrint('加载备份配置失败: $e');
@@ -71,6 +76,65 @@ class NetworkBackupService {
       debugPrint('保存备份配置失败: $e');
       rethrow;
     }
+  }
+
+  /// 只接受 https，或指向本机回环的 http（开发调试用）。
+  static bool _isAcceptableUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasAuthority) return false;
+    if (uri.scheme == 'https') return true;
+    if (uri.scheme == 'http') {
+      return uri.host == '127.0.0.1' || uri.host == 'localhost' || uri.host == '::1';
+    }
+    return false;
+  }
+
+  /// 备份是否加密：配了口令（token）就加密，没配则保持明文（旧行为）。
+  bool get isEncrypted => _token.isNotEmpty;
+
+  /// 上传前打包：加密时只把密文塞进 `encrypted`，`__backup_name` 保持明文，
+  /// 否则服务端读不到文件名，固定名覆盖就失效。
+  String _packForUpload(String jsonStr, String? backupName) {
+    if (!isEncrypted) {
+      if (backupName == null) return jsonStr;
+      final data = json.decode(jsonStr) as Map<String, dynamic>;
+      data['__backup_name'] = backupName;
+      return json.encode(data);
+    }
+    final out = <String, dynamic>{
+      'encrypted': BackupCrypto.encrypt(jsonStr, _token),
+    };
+    if (backupName != null) out['__backup_name'] = backupName;
+    return json.encode(out);
+  }
+
+  /// 下载后解包：兼容「加密外壳」「顶层即密文」和「旧版明文」三种 body。
+  String _unpack(String body) {
+    final trimmed = body.trimLeft();
+    if (!trimmed.startsWith('{')) return body;
+    Map<String, dynamic>? map;
+    try {
+      final decoded = json.decode(trimmed);
+      if (decoded is Map<String, dynamic>) map = decoded;
+    } catch (_) {
+      return body;
+    }
+    if (map == null) return body;
+
+    final encryptedField = map['encrypted'];
+    if (encryptedField is String) {
+      if (_token.isEmpty) {
+        throw StateError('该备份已加密，请先在设置里填写备份口令（token）');
+      }
+      return BackupCrypto.decrypt(encryptedField, _token);
+    }
+    if (map['format'] == BackupCrypto.formatTag) {
+      if (_token.isEmpty) {
+        throw StateError('该备份已加密，请先在设置里填写备份口令（token）');
+      }
+      return BackupCrypto.decrypt(trimmed, _token);
+    }
+    return body;
   }
 
   String get serverUrl => _serverUrl;
@@ -95,13 +159,25 @@ class NetworkBackupService {
         return await action();
       } catch (e) {
         debugPrint('[NetworkBackup] 尝试 ${i + 1}/$maxRetries 失败: $e');
-        if (i == maxRetries - 1) rethrow;
+        // 4xx（401 token 错 / 404 不存在 / 400 参数错）重试也没用，白等 1+2+4 秒
+        if (_isPermanentFailure(e) || i == maxRetries - 1) rethrow;
         final delay = Duration(seconds: math.pow(2, i).toInt());
         debugPrint('[NetworkBackup] ${delay.inSeconds}s后重试...');
         await Future.delayed(delay);
       }
     }
     throw Exception('超过最大重试次数');
+  }
+
+  /// 判定为「重试无意义」的错误：HTTP 4xx。
+  bool _isPermanentFailure(Object e) {
+    final message = e.toString();
+    final match = RegExp(r'HTTP (\d{3})').firstMatch(message);
+    if (match != null) {
+      final code = int.tryParse(match.group(1) ?? '') ?? 0;
+      return code >= 400 && code < 500;
+    }
+    return e is StateError; // 例如「备份已加密但没填口令」
   }
 
   Future<bool> ping() async {
@@ -127,13 +203,8 @@ class NetworkBackupService {
     return await _retry<BackupUploadResult>(() async {
       onProgress?.call(0.0);
       debugPrint('[NetworkBackup] 开始上传 (${jsonStr.length} 字节)');
-      // Inject custom filename into JSON body
-      String body = jsonStr;
-      if (backupName != null) {
-        final data = json.decode(jsonStr) as Map<String, dynamic>;
-        data['__backup_name'] = backupName;
-        body = json.encode(data);
-      }
+      // 加密 + 注入文件名（加密时只有文件名保持明文）
+      final body = _packForUpload(jsonStr, backupName);
       final resp = await http
           .post(Uri.parse('$_serverUrl/api/backup'),
               headers: _headers, body: body)
@@ -220,7 +291,7 @@ class NetworkBackupService {
       if (resp.statusCode == 200) {
         onProgress?.call(1.0);
         debugPrint('[NetworkBackup] 下载成功: ${resp.body.length} 字节');
-        return resp.body;
+        return _unpack(resp.body);
       }
       throw Exception('下载失败: HTTP ${resp.statusCode}');
     });

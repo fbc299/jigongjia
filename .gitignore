@@ -4,5 +4,6 @@ build/
 *.iml
 .idea/
 *.lock
+!pubspec.lock
 .gradle/
 local.properties

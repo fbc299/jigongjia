@@ -53,9 +53,10 @@ class PhotoEvidenceProvider extends ChangeNotifier {
       await db.insert(
         AppConstants.tablePhotoEvidence,
         photo.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
+        conflictAlgorithm: ConflictAlgorithm.abort,
       );
-      _photos.insert(0, photo);
+      // 与 DB 的 `ORDER BY createdAt DESC` 保持一致
+      _photos..add(photo)..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       notifyListeners();
     } catch (e) {
       debugPrint('添加照片记录失败: $e');

@@ -46,9 +46,10 @@ class BorrowProvider extends ChangeNotifier {
       await db.insert(
         AppConstants.tableBorrowRecords,
         record.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
+        conflictAlgorithm: ConflictAlgorithm.abort,
       );
-      _records.insert(0, record);
+      // 与 DB 的 `ORDER BY date DESC` 保持一致，补录旧日期后列表不会错位
+      _records..add(record)..sort((a, b) => b.date.compareTo(a.date));
       notifyListeners();
     } catch (e) {
       debugPrint('添加借支记录失败: $e');
@@ -82,8 +83,13 @@ class BorrowProvider extends ChangeNotifier {
         whereArgs: [record.id],
       );
       final idx = _records.indexWhere((r) => r.id == record.id);
-      if (idx >= 0) _records[idx] = record;
-      notifyListeners();
+      if (idx >= 0) {
+        _records[idx] = record;
+        notifyListeners();
+      } else {
+        // 内存里没有这条：重新加载，不要假装更新成功
+        await loadRecords();
+      }
     } catch (e) {
       debugPrint('更新借支记录失败: $e');
       rethrow;

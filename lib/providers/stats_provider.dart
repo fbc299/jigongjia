@@ -1,9 +1,14 @@
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
-import '../models/work_record.dart';
+import '../core/utils/work_stats.dart';
+
 import 'work_provider.dart';
 import 'borrow_provider.dart';
 import 'settlement_provider.dart';
+
+// 工天口径统一在 work_stats.dart，这里 re-export 方便既有的 stats_provider 引用方
+// （stats_screen / work_entry_screen）继续拿到 sumWorkDays / formatDays。
+export '../core/utils/work_stats.dart';
 
 enum AttendanceStatus {
   worked,   // 出勤
@@ -29,7 +34,7 @@ class ProjectSummary {
 }
 
 class MonthlyStats {
-  final int workDays;
+  final double workDays;
   final double overtimeHours;
   final double totalIncome;
   final double borrowAmount;
@@ -43,6 +48,7 @@ class MonthlyStats {
     required this.unpaidAmount,
   });
 }
+
 
 class StatsProvider extends ChangeNotifier {
   /// Selector helper: wrap Selector<StatsProvider, T> to reduce rebuilds.
@@ -66,23 +72,26 @@ class StatsProvider extends ChangeNotifier {
     this._workProvider,
     this._borrowProvider,
     this._settlementProvider,
-  );
+  ) {
+    // StatsProvider 自己算不出变化，必须跟随三个数据源通知，
+    // 否则 Consumer/watch<StatsProvider> 的界面永远不刷新（只在碰巧父级重建时才对）。
+    _workProvider.addListener(notifyListeners);
+    _borrowProvider.addListener(notifyListeners);
+    _settlementProvider.addListener(notifyListeners);
+  }
+
+  @override
+  void dispose() {
+    _workProvider.removeListener(notifyListeners);
+    _borrowProvider.removeListener(notifyListeners);
+    _settlementProvider.removeListener(notifyListeners);
+    super.dispose();
+  }
 
   ProjectSummary getProjectSummary(String projectId) {
     final workRecords = _workProvider.getRecordsByProject(projectId);
-    final totalDays = workRecords
-        .where((r) => !r.isRest)
-        .fold(0.0, (sum, r) {
-      switch (r.type) {
-        case WorkType.point:
-          return sum + r.days;
-        case WorkType.packageDay:
-          return sum + r.packageDays;
-        case WorkType.packageQty:
-          return sum + (r.quantity > 0 ? 1.0 : 0.0);
-      }
-    });
-
+    // 工天统一口径（点工 days / 包工 packageDays / 包工按量 1 天），与月度统计共用
+    final totalDays = sumWorkDays(workRecords);
     final totalWage = workRecords.fold(0.0, (sum, r) => sum + r.totalWage);
     final totalBorrowed = _borrowProvider.getTotalBorrowedByProject(projectId);
 
@@ -120,7 +129,7 @@ class StatsProvider extends ChangeNotifier {
     final records = _workProvider.getRecordsByMonth(projectId, year, month);
     final workRecords = records.where((r) => !r.isRest).toList();
 
-    final workDays = workRecords.length;
+    final workDays = sumWorkDays(workRecords);
     final overtimeHours = workRecords.fold(
       0.0,
       (sum, r) => sum + r.overtimeHours,

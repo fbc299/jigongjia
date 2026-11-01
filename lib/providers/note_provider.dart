@@ -43,9 +43,10 @@ class NoteProvider extends ChangeNotifier {
       await db.insert(
         AppConstants.tableNotes,
         note.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
+        conflictAlgorithm: ConflictAlgorithm.abort,
       );
-      _notes.insert(0, note);
+      // 与 DB 的 `ORDER BY updatedAt DESC` 保持一致
+      _notes..add(note)..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
       notifyListeners();
     } catch (e) {
       debugPrint('添加笔记失败: $e');
@@ -67,6 +68,9 @@ class NoteProvider extends ChangeNotifier {
       if (index != -1) {
         _notes[index] = updated;
         notifyListeners();
+      } else {
+        // 内存里没有这条：重新加载，不要假装更新成功
+        await loadNotes();
       }
     } catch (e) {
       debugPrint('更新笔记失败: $e');

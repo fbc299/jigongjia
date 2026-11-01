@@ -178,11 +178,12 @@ class _StatsScreenState extends State<StatsScreen>
       _currentMonth.month,
     );
 
+    // 「出勤」= 有记工的天数（条数）；「总工天」= 实际工天（半天记工算 0.5）
     final workDays = records.where((r) => !r.isRest).length;
     final overtimeDays = records.where((r) => r.overtimeHours > 0).length;
     final totalOvertimeHours = records.fold<double>(0, (sum, r) => sum + r.overtimeHours);
     final restDays = records.where((r) => r.isRest).length;
-    final totalDays = records.length;
+    final totalDays = sumWorkDays(records);
 
     return Column(
       children: [
@@ -376,7 +377,7 @@ class _StatsScreenState extends State<StatsScreen>
   }
 
   Widget _buildAttendanceSummary(
-      int workDays, int overtimeDays, double totalOvertimeHours, int restDays, int totalDays) {
+      int workDays, int overtimeDays, double totalOvertimeHours, int restDays, double totalDays) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -386,7 +387,7 @@ class _StatsScreenState extends State<StatsScreen>
             _summaryItem('出勤', '$workDays天', AppTheme.okGreen),
             _summaryItem('加班', '${totalOvertimeHours.toStringAsFixed(totalOvertimeHours == totalOvertimeHours.roundToDouble() ? 0 : 1)}h', AppTheme.warnAmber),
             _summaryItem('休息', '$restDays天', Colors.grey),
-            _summaryItem('总工天', '$totalDays天',
+            _summaryItem('总工天', '${formatDays(totalDays)}天',
                 Theme.of(context).colorScheme.primary),
           ],
         ),
@@ -489,7 +490,7 @@ class _StatsScreenState extends State<StatsScreen>
                 child: StatCard(
                   icon: Icons.calendar_today,
                   label: '总工天',
-                  value: '${monthlyStats.workDays}',
+                  value: formatDays(monthlyStats.workDays),
                   color: Theme.of(context).colorScheme.primary,
                 ),
               ),

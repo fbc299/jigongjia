@@ -229,6 +229,10 @@ class _SettlementScreenState extends State<SettlementScreen> {
                           if (amount == null || amount <= 0) {
                             return '请输入有效金额';
                           }
+                          // 结算不能超过未结工资：多结会让未结变负，并被月度统计静默掩盖
+                          if (amount > unpaid + 0.005) {
+                            return '超出未结工资 ¥$unpaidStr';
+                          }
                           return null;
                         },
                       ),

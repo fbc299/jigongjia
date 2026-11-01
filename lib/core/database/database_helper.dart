@@ -251,16 +251,62 @@ class DatabaseHelper {
           if (((m['note'] as String?) ?? '').isNotEmpty) m['note'] as String,
       ];
 
-      await db.update(
-        AppConstants.tableWorkRecords,
-        {
+      final mergedWage = own('totalWage') + sum('totalWage');
+      final baseType = (base['type'] as String?) ?? 'point';
+
+      // 合并后必须保持「字段重算 == totalWage」，否则用户打开这条记录点一次保存，
+      // work_entry_screen 的 _wage 会按 type 从字段重算，金额就被静默改掉。
+      // 只有「类型相同且单价相同」时，字段直接相加才自洽；否则退化成点工，
+      // 用 days = 金额 / 日薪 反推，保证金额一分不差（备注里注明是合并记录）。
+      final sameTypeAndRate = dups.every((m) {
+        if (((m['type'] as String?) ?? 'point') != baseType) return false;
+        switch (baseType) {
+          case 'packageDay':
+            return (m['packageDayRate'] as num?)?.toDouble() == own('packageDayRate');
+          case 'packageQty':
+            return (m['qtyUnitPrice'] as num?)?.toDouble() == own('qtyUnitPrice');
+          default:
+            return (m['dailyRate'] as num?)?.toDouble() == own('dailyRate') &&
+                (m['overtimeRate'] as num?)?.toDouble() == own('overtimeRate');
+        }
+      });
+
+      final Map<String, Object?> mergedFields;
+      if (sameTypeAndRate) {
+        mergedFields = {
           'days': own('days') + sum('days'),
           'overtimeHours': own('overtimeHours') + sum('overtimeHours'),
           'packageDays': own('packageDays') + sum('packageDays'),
           'quantity': own('quantity') + sum('quantity'),
-          'totalWage': own('totalWage') + sum('totalWage'),
+          'totalWage': mergedWage,
           'note': mergedNotes.toSet().join(' / '),
-        },
+        };
+      } else {
+        final rate = own('dailyRate') > 0
+            ? own('dailyRate')
+            : ((base['dailyRate'] as num?)?.toDouble() ?? 300.0);
+        final safeRate = rate > 0 ? rate : 300.0;
+        mergedFields = {
+          'type': 'point',
+          'days': mergedWage / safeRate,
+          'dailyRate': safeRate,
+          'overtimeHours': 0.0,
+          'overtimeRate': 0.0,
+          'packageDays': 0.0,
+          'packageDayRate': 0.0,
+          'quantity': 0.0,
+          'qtyUnitPrice': 0.0,
+          'totalWage': mergedWage,
+          'note': [
+            ...mergedNotes.toSet(),
+            '（系统合并同日多条记工，金额已保留，工天按日薪折算）',
+          ].join(' / '),
+        };
+      }
+
+      await db.update(
+        AppConstants.tableWorkRecords,
+        mergedFields,
         where: 'id = ?',
         whereArgs: [base['id']],
       );

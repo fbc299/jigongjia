@@ -50,7 +50,8 @@ class WorkProvider extends ChangeNotifier {
         normalized.toMap(),
         conflictAlgorithm: ConflictAlgorithm.abort,
       );
-      _records.insert(0, normalized);
+      // 与 DB 的 `ORDER BY date DESC` 保持一致（补录旧日期时不能总插到最前）
+      _records..add(normalized)..sort((a, b) => b.date.compareTo(a.date));
       notifyListeners();
     } on DatabaseException catch (e) {
       debugPrint('添加工时记录失败: $e');
@@ -83,6 +84,9 @@ class WorkProvider extends ChangeNotifier {
       if (index != -1) {
         _records[index] = normalized;
         notifyListeners();
+      } else {
+        // 内存里没有这条（别处改过 / 尚未加载）：重新加载，不要假装更新成功
+        await loadRecords();
       }
     } on DatabaseException catch (e) {
       debugPrint('更新工时记录失败: $e');

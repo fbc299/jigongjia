@@ -46,9 +46,10 @@ class ExpenseProvider extends ChangeNotifier {
       await db.insert(
         AppConstants.tableExpenses,
         expense.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
+        conflictAlgorithm: ConflictAlgorithm.abort,
       );
-      _expenses.insert(0, expense);
+      // 与 DB 的 `ORDER BY date DESC` 保持一致
+      _expenses..add(expense)..sort((a, b) => b.date.compareTo(a.date));
       notifyListeners();
     } catch (e) {
       debugPrint('添加开支记录失败: $e');

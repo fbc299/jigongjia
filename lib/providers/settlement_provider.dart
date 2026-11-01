@@ -46,9 +46,10 @@ class SettlementProvider extends ChangeNotifier {
       await db.insert(
         AppConstants.tableSettlements,
         settlement.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
+        conflictAlgorithm: ConflictAlgorithm.abort,
       );
-      _settlements.insert(0, settlement);
+      // 与 DB 的 `ORDER BY date DESC` 保持一致
+      _settlements..add(settlement)..sort((a, b) => b.date.compareTo(a.date));
       notifyListeners();
     } catch (e) {
       debugPrint('添加结算记录失败: $e');

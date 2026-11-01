@@ -4,6 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
 import '../../models/work_record.dart';
+import '../utils/work_stats.dart';
 
 class PdfUtil {
   PdfUtil._();
@@ -43,7 +44,8 @@ class PdfUtil {
 
     // Calculate summary
     final workRecords = records.where((r) => !r.isRest).toList();
-    final totalWorkDays = workRecords.length;
+    // 与统计页/记工页同一口径：半天记工算 0.5 天，不再按记录条数
+    final totalWorkDays = sumWorkDays(workRecords);
     final totalOvertimeHours = workRecords.fold(
       0.0,
       (sum, r) => sum + r.overtimeHours,
@@ -103,8 +105,16 @@ class PdfUtil {
           // Summary
           _buildSummary(totalWorkDays, totalOvertimeHours, totalIncome),
           pw.SizedBox(height: 16),
-          // Detail table
-          _buildDetailTable(records),
+          // Detail table —— 标题与表格分开成两个条目，
+          // 表格本体（Table）才能被 MultiPage 跨页拆分（整月记录不会溢出）
+          if (records.isNotEmpty) ...[
+            pw.Text(
+              '详细记录',
+              style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 8),
+            _buildDetailTable(records),
+          ],
         ],
       ),
     );
@@ -258,7 +268,7 @@ class PdfUtil {
   }
 
   static pw.Widget _buildSummary(
-    int workDays,
+    double workDays,
     double overtimeHours,
     double totalIncome,
   ) {
@@ -285,7 +295,7 @@ class PdfUtil {
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
             children: [
-              _summaryItem('出勤天数', '$workDays 天'),
+              _summaryItem('出勤天数', '${formatDays(workDays)} 天'),
               _summaryItem('加班时长', '${overtimeHours.toStringAsFixed(1)} 小时'),
               _summaryItem('总收入', '¥${numberFormat.format(totalIncome)}'),
             ],
@@ -322,18 +332,9 @@ class PdfUtil {
     final dateFormat = DateFormat('MM/dd');
     final numberFormat = NumberFormat('#,##0.00');
 
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          '详细记录',
-          style: pw.TextStyle(
-            fontSize: 14,
-            fontWeight: pw.FontWeight.bold,
-          ),
-        ),
-        pw.SizedBox(height: 8),
-        pw.TableHelper.fromTextArray(
+    // 注意：这里必须直接返回 Table（可跨页），不能包在 pw.Column 里，
+    // 否则 MultiPage 无法分割，记录一多就抛 "Widget won't fit into the page"。
+    return pw.TableHelper.fromTextArray(
           headerStyle: pw.TextStyle(
             fontSize: 9,
             fontWeight: pw.FontWeight.bold,
@@ -389,8 +390,6 @@ class PdfUtil {
               r.note.isEmpty ? '-' : r.note,
             ];
           }).toList(),
-        ),
-      ],
-    );
+        );
   }
 }

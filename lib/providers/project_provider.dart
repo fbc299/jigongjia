@@ -87,7 +87,8 @@ class ProjectProvider extends ChangeNotifier {
         project.toMap(),
         conflictAlgorithm: ConflictAlgorithm.abort,
       );
-      _projects.insert(0, project);
+      // 与 DB 的 `ORDER BY createdAt DESC` 保持一致
+      _projects..add(project)..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       notifyListeners();
     } on DatabaseException catch (e) {
       debugPrint('addProject error: $e');

@@ -29,6 +29,8 @@ class _StatsScreenState extends State<StatsScreen>
   String? _selectedProjectId;
   bool _selectedInitialized = false;
   DateTime _currentMonth = DateTime(DateTime.now().year, DateTime.now().month);
+  /// 近 6 个月趋势图展示的指标：days=工天，wage=收入
+  String _trendMetric = 'days';
 
 
 
@@ -541,7 +543,153 @@ class _StatsScreenState extends State<StatsScreen>
             height: 200,
             child: _buildDailyWageChart(records),
           ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '近 6 个月趋势',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'days', label: Text('工天')),
+                  ButtonSegment(value: 'wage', label: Text('收入')),
+                ],
+                selected: {_trendMetric},
+                showSelectedIcon: false,
+                style: const ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                onSelectionChanged: (v) => setState(() => _trendMetric = v.first),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 200,
+            child: _buildMonthlyTrendChart(workProvider),
+          ),
         ],
+      ),
+    );
+  }
+
+  /// 近 6 个月（含当月）工天/收入柱状图。
+  /// 数据口径与月度统计一致：工天走 sumWorkDays，收入走 totalWage。
+  Widget _buildMonthlyTrendChart(WorkProvider workProvider) {
+    final projectId = _selectedProjectId;
+    if (projectId == null) return const SizedBox.shrink();
+    if (PrivacyService().isHidden.value) {
+      return const Center(child: Text('金额已隐藏'));
+    }
+
+    final months = <DateTime>[
+      for (int i = 5; i >= 0; i--)
+        DateTime(_currentMonth.year, _currentMonth.month - i),
+    ];
+    final values = months.map((m) {
+      final monthRecords = workProvider.getRecordsByMonth(projectId, m.year, m.month);
+      if (_trendMetric == 'days') {
+        return sumWorkDays(monthRecords.where((r) => !r.isRest).toList());
+      }
+      return monthRecords.fold<double>(0, (s, r) => s + r.totalWage);
+    }).toList();
+
+    double maxValue = 0;
+    for (final v in values) {
+      if (v > maxValue) maxValue = v;
+    }
+    if (maxValue <= 0) {
+      return const Center(child: Text('近 6 个月暂无记录'));
+    }
+
+    final primary = Theme.of(context).colorScheme.primary;
+    final currentKey = DateTime(_currentMonth.year, _currentMonth.month);
+
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: maxValue * 1.25,
+        barGroups: [
+          for (int i = 0; i < months.length; i++)
+            BarChartGroupData(
+              x: i,
+              barRods: [
+                BarChartRodData(
+                  toY: values[i],
+                  width: 22,
+                  color: months[i] == currentKey ? primary : primary.withValues(alpha: 0.35),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                ),
+              ],
+            ),
+        ],
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 46,
+              getTitlesWidget: (value, meta) {
+                if (value == 0) return const SizedBox.shrink();
+                final text = _trendMetric == 'days'
+                    ? formatDays(value)
+                    : (value >= 1000
+                        ? '${(value / 1000).toStringAsFixed(value >= 10000 ? 0 : 1)}k'
+                        : value.toInt().toString());
+                return Text(text, style: const TextStyle(fontSize: 9));
+              },
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (value, meta) {
+                final i = value.toInt();
+                if (i < 0 || i >= months.length) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    '${months[i].month}月',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: months[i] == currentKey ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: Theme.of(context).colorScheme.outlineVariant,
+            strokeWidth: 0.5,
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        barTouchData: BarTouchData(
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              final m = months[group.x];
+              final v = rod.toY;
+              return BarTooltipItem(
+                '${m.year}年${m.month}月\n'
+                '${_trendMetric == 'days' ? '${formatDays(v)} 工天' : '¥${NumberFormat('#,##0.00').format(v)}'}',
+                const TextStyle(fontSize: 11, color: Colors.white),
+              );
+            },
+          ),
+        ),
       ),
     );
   }

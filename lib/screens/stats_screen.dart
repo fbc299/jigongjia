@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:jigongjia/core/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:jigongjia/core/utils/privacy_service.dart';
 import 'package:printing/printing.dart';
 
@@ -14,6 +13,7 @@ import '../providers/settlement_provider.dart';
 import '../models/work_record.dart';
 import '../core/utils/pdf_util.dart';
 import 'widgets/stat_card.dart';
+import 'widgets/stat_charts.dart';
 import 'widgets/record_tile.dart';
 
 class StatsScreen extends StatefulWidget {
@@ -541,7 +541,7 @@ class _StatsScreenState extends State<StatsScreen>
           const SizedBox(height: 12),
           SizedBox(
             height: 200,
-            child: _buildDailyWageChart(records),
+            child: DailyWageChart(records: records, month: _currentMonth),
           ),
           const SizedBox(height: 20),
           Row(
@@ -573,7 +573,7 @@ class _StatsScreenState extends State<StatsScreen>
           const SizedBox(height: 12),
           SizedBox(
             height: 200,
-            child: _buildMonthlyTrendChart(workProvider),
+            child: _buildTrendSection(workProvider),
           ),
         ],
       ),
@@ -582,7 +582,10 @@ class _StatsScreenState extends State<StatsScreen>
 
   /// 近 6 个月（含当月）工天/收入柱状图。
   /// 数据口径与月度统计一致：工天走 sumWorkDays，收入走 totalWage。
-  Widget _buildMonthlyTrendChart(WorkProvider workProvider) {
+
+
+  /// 近 6 个月趋势：先按月聚合，再交给 MonthlyTrendChart 画图。
+  Widget _buildTrendSection(WorkProvider workProvider) {
     final projectId = _selectedProjectId;
     if (projectId == null) return const SizedBox.shrink();
     if (PrivacyService().isHidden.value) {
@@ -598,189 +601,14 @@ class _StatsScreenState extends State<StatsScreen>
       if (_trendMetric == 'days') {
         return sumWorkDays(monthRecords.where((r) => !r.isRest).toList());
       }
-      return monthRecords.fold<double>(0, (s, r) => s + r.totalWage);
+      return monthRecords.fold<double>(0, (sum, r) => sum + r.totalWage);
     }).toList();
 
-    double maxValue = 0;
-    for (final v in values) {
-      if (v > maxValue) maxValue = v;
-    }
-    if (maxValue <= 0) {
-      return const Center(child: Text('近 6 个月暂无记录'));
-    }
-
-    final primary = Theme.of(context).colorScheme.primary;
-    final currentKey = DateTime(_currentMonth.year, _currentMonth.month);
-
-    return BarChart(
-      BarChartData(
-        alignment: BarChartAlignment.spaceAround,
-        maxY: maxValue * 1.25,
-        barGroups: [
-          for (int i = 0; i < months.length; i++)
-            BarChartGroupData(
-              x: i,
-              barRods: [
-                BarChartRodData(
-                  toY: values[i],
-                  width: 22,
-                  color: months[i] == currentKey ? primary : primary.withValues(alpha: 0.35),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-                ),
-              ],
-            ),
-        ],
-        titlesData: FlTitlesData(
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 46,
-              getTitlesWidget: (value, meta) {
-                if (value == 0) return const SizedBox.shrink();
-                final text = _trendMetric == 'days'
-                    ? formatDays(value)
-                    : (value >= 1000
-                        ? '${(value / 1000).toStringAsFixed(value >= 10000 ? 0 : 1)}k'
-                        : value.toInt().toString());
-                return Text(text, style: const TextStyle(fontSize: 9));
-              },
-            ),
-          ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (value, meta) {
-                final i = value.toInt();
-                if (i < 0 || i >= months.length) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Text(
-                    '${months[i].month}月',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: months[i] == currentKey ? FontWeight.bold : FontWeight.normal,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        ),
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          getDrawingHorizontalLine: (value) => FlLine(
-            color: Theme.of(context).colorScheme.outlineVariant,
-            strokeWidth: 0.5,
-          ),
-        ),
-        borderData: FlBorderData(show: false),
-        barTouchData: BarTouchData(
-          touchTooltipData: BarTouchTooltipData(
-            getTooltipItem: (group, groupIndex, rod, rodIndex) {
-              final m = months[group.x];
-              final v = rod.toY;
-              return BarTooltipItem(
-                '${m.year}年${m.month}月\n'
-                '${_trendMetric == 'days' ? '${formatDays(v)} 工天' : '¥${NumberFormat('#,##0.00').format(v)}'}',
-                const TextStyle(fontSize: 11, color: Colors.white),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDailyWageChart(List<WorkRecord> records) {
-    if (records.isEmpty) {
-      return const Center(child: Text('本月暂无记录'));
-    }
-
-    // Build map day -> wage
-    final dayWages = <int, double>{};
-    for (final r in records) {
-      dayWages[r.date.day] = (dayWages[r.date.day] ?? 0) + r.totalWage;
-    }
-
-    final lastDay =
-        DateTime(_currentMonth.year, _currentMonth.month + 1, 0).day;
-    final barGroups = <BarChartGroupData>[];
-
-    for (int day = 1; day <= lastDay; day++) {
-      final wage = dayWages[day] ?? 0;
-      barGroups.add(
-        BarChartGroupData(
-          x: day,
-          barRods: [
-            BarChartRodData(
-              toY: wage,
-              color: wage > 0
-                  ? Theme.of(context).colorScheme.primary
-                  : Colors.grey.shade200,
-              width: 8,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return BarChart(
-      BarChartData(
-        alignment: BarChartAlignment.spaceAround,
-        maxY: dayWages.values.isEmpty
-            ? 100
-            : (dayWages.values.reduce((a, b) => a > b ? a : b) * 1.2),
-        barGroups: barGroups,
-        titlesData: FlTitlesData(
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 44,
-              getTitlesWidget: (value, meta) {
-                if (value == 0) return const SizedBox.shrink();
-                return Text(
-                  value.toInt().toString(),
-                  style: const TextStyle(fontSize: 9),
-                );
-              },
-            ),
-          ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (value, meta) {
-                final day = value.toInt();
-                if (day % 5 == 1 || day == 1 || day == lastDay) {
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text('$day',
-                        style: const TextStyle(fontSize: 9)),
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-          ),
-          topTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        ),
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          horizontalInterval: 100,
-          getDrawingHorizontalLine: (value) => FlLine(
-            color: Theme.of(context).colorScheme.outlineVariant,
-            strokeWidth: 0.5,
-          ),
-        ),
-        borderData: FlBorderData(show: false),
-      ),
+    return MonthlyTrendChart(
+      months: months,
+      values: values,
+      isDays: _trendMetric == 'days',
+      currentMonth: _currentMonth,
     );
   }
 

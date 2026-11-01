@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'record_search_screen.dart';
 import 'package:jigongjia/core/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -68,6 +70,13 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
         backgroundColor: const Color(0xFFF8F6F2),
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: '查记录',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const RecordSearchScreen()),
+            ),
+          ),
           ValueListenableBuilder<bool>(
             valueListenable: PrivacyService().isHidden,
             builder: (_, hidden, __) => IconButton(

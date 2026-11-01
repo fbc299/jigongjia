@@ -1,3 +1,5 @@
+import 'dart:ui' show PlatformDispatcher;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
@@ -14,6 +16,19 @@ import 'package:jigongjia/providers/photo_evidence_provider.dart';
 import 'package:jigongjia/app.dart';
 
 void main() {
+  // 必须先初始化绑定，再碰 SharedPreferences/文件等插件
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 全局错误兜底：以前后台异常直接静默丢失，用户只看到「没反应」
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('Flutter 异常: ${details.exceptionAsString()}');
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('未捕获异常: $error\n$stack');
+    return true;
+  };
+
   final workProvider = WorkProvider();
   final borrowProvider = BorrowProvider();
   final settlementProvider = SettlementProvider();

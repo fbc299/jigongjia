@@ -14,7 +14,6 @@ enum AttendanceStatus {
   worked,   // 出勤
   rest,     // 休息
   overtime, // 加班
-  absent,   // 缺勤
 }
 
 class ProjectSummary {

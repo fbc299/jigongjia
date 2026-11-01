@@ -337,8 +337,6 @@ class _StatsScreenState extends State<StatsScreen>
         return Colors.grey;
       case AttendanceStatus.overtime:
         return AppTheme.warnAmber;
-      case AttendanceStatus.absent:
-        return Colors.red;
       case null:
         return null;
     }

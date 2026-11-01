@@ -372,12 +372,4 @@ class DatabaseHelper {
     final db = await database;
     return await db.transaction(action);
   }
-
-  /// 批量执行数据库操作
-  Future<void> batchOp(void Function(Batch batch) operations) async {
-    final db = await database;
-    final batch = db.batch();
-    operations(batch);
-    await batch.commit();
-  }
 }

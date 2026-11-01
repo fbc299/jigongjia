@@ -8,6 +8,7 @@ import '../providers/work_provider.dart';
 import '../providers/borrow_provider.dart';
 import '../providers/settlement_provider.dart';
 import '../providers/photo_evidence_provider.dart';
+import '../core/utils/photo_files.dart';
 
 class ProjectProvider extends ChangeNotifier {
   /// 子数据 provider（项目删除时联动清理其内存缓存）。
@@ -138,12 +139,17 @@ class ProjectProvider extends ChangeNotifier {
 
   Future<void> deleteProject(String id) async {
     try {
+      // 先记下这个项目的照片文件，DB 行删掉后就没法再查了
+      final photoPaths =
+          _photo?.getPhotosByProject(id).map((p) => p.filePath).toList() ?? const <String>[];
       final db = await DatabaseHelper.instance.database;
       await db.delete(
         AppConstants.tableProjects,
         where: 'id = ?',
         whereArgs: [id],
       );
+      // 图片本体不在数据库里，外键级联管不到：必须自己删，否则永久占磁盘
+      await deletePhotoFiles(photoPaths);
       _projects.removeWhere((p) => p.id == id);
       notifyListeners();
       // 联动清理子 provider 的内存缓存（DB 端子表由外键 ON DELETE CASCADE 处理）

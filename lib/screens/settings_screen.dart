@@ -28,6 +28,7 @@ import '../models/photo_evidence.dart';
 import '../core/constants/app_constants.dart';
 import '../core/database/database_helper.dart';
 import '../core/utils/network_backup.dart';
+import '../core/utils/photo_files.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -293,8 +294,10 @@ Future<_ParsedBackup> _parseAndValidateBackup(String jsonStr) async {
         '备份引用完整性错误：photoEvidence 第 ${i + 1} 条引用了不存在的记工记录（id=${fixed.workRecordId}）',
       );
     }
-    if (await File(fixed.filePath).exists()) {
-      photos.add(fixed);
+    // 备份里存的是文件名，先还原成当前设备上的绝对路径再看文件在不在
+    final resolvedPath = await resolvePhotoPath(fixed.filePath);
+    if (await File(resolvedPath).exists()) {
+      photos.add(fixed.copyWith(filePath: resolvedPath));
     } else {
       missingPhotoFiles++; // 备份只存路径不存图片本体，换机必然失效 → 计数后告知用户
     }
@@ -586,7 +589,10 @@ class _DataManagementSection extends StatelessWidget {
         'settlements': settlementProvider.settlements.map((s) => s.toMap()).toList(),
         'expenses': expenseProvider.expenses.map((e) => e.toMap()).toList(),
         'notes': noteProvider.notes.map((n) => n.toMap()).toList(),
-        'photoEvidence': photoProvider.photos.map((p) => p.toMap()).toList(),
+        // 只传文件名，不带设备绝对路径
+        'photoEvidence': photoProvider.photos
+            .map((p) => {...p.toMap(), 'filePath': backupPhotoPath(p.filePath)})
+            .toList(),
       };
 
       final jsonStr = const JsonEncoder.withIndent('  ').convert(backup);

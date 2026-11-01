@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 /// 照片文件清理。
 ///
@@ -23,4 +25,15 @@ Future<int> deletePhotoFiles(Iterable<String> paths) async {
     }
   }
   return deleted;
+}
+
+/// 导出/上传备份时把照片路径降级成纯文件名：
+/// 一是别把设备目录结构传上服务器，二是换机后路径必然失效。
+String backupPhotoPath(String filePath) => p.basename(filePath);
+
+/// 导入备份时把纯文件名还原成本机的照片绝对路径（旧备份里的绝对路径原样保留）。
+Future<String> resolvePhotoPath(String stored) async {
+  if (p.isAbsolute(stored)) return stored;
+  final dir = await getApplicationDocumentsDirectory();
+  return p.join(dir.path, 'photo_evidence', stored);
 }

@@ -7,7 +7,8 @@ plugins {
 
 android {
     namespace = "com.jigongjia.jigongjia"
-    compileSdk = flutter.compileSdkVersion
+    // flutter_secure_storage 编译于 SDK 36；本地已装 android-36，直接对齐避免警告
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -24,7 +25,9 @@ android {
         applicationId = "com.jigongjia.gegejigong"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // flutter_secure_storage（备份 token 走 Android Keystore）要求 API 23+，
+        // 21/22 = Android 5.x，早已无人使用
+        minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

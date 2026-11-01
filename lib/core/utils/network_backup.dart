@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'backup_crypto.dart';
@@ -48,6 +49,12 @@ class NetworkBackupService {
   // 留空时服务端按匿名模式处理，仅做备份文件读写。
   static const _defaultToken = '';
 
+  /// 备份 token 就是加密口令：它能读/写/删服务器上全部备份，
+  /// 不能明文躺在 SharedPreferences（root / adb / 云备份都能取走）。
+  static const _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+
   String _serverUrl = _defaultUrl;
   String _token = _defaultToken;
 
@@ -58,7 +65,25 @@ class NetworkBackupService {
       // 设置页保存时校验过 scheme，但 prefs 可以被旧版本/别的代码写脏，
       // 这里再验一次：非法地址回退默认值并清空口令，避免把 token 发给任意主机。
       _serverUrl = _isAcceptableUrl(savedUrl) ? savedUrl : _defaultUrl;
-      _token = prefs.getString(_prefToken) ?? _defaultToken;
+
+      String? token;
+      try {
+        token = await _secureStorage.read(key: _prefToken);
+      } catch (e) {
+        debugPrint('读取加密存储失败，回退 prefs: $e');
+      }
+      // 老版本把 token 明文存在 prefs，读到就迁移进加密存储并清掉明文
+      final legacy = prefs.getString(_prefToken);
+      if ((token == null || token.isEmpty) && legacy != null && legacy.isNotEmpty) {
+        token = legacy;
+        try {
+          await _secureStorage.write(key: _prefToken, value: legacy);
+          await prefs.remove(_prefToken);
+        } catch (e) {
+          debugPrint('迁移 token 到加密存储失败: $e');
+        }
+      }
+      _token = (token != null && token.isNotEmpty) ? token : _defaultToken;
     } catch (e) {
       debugPrint('加载备份配置失败: $e');
       rethrow;
@@ -71,7 +96,18 @@ class NetworkBackupService {
       _token = token;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_prefUrl, url);
-      await prefs.setString(_prefToken, token);
+      try {
+        if (token.isEmpty) {
+          await _secureStorage.delete(key: _prefToken);
+        } else {
+          await _secureStorage.write(key: _prefToken, value: token);
+        }
+        await prefs.remove(_prefToken);
+      } catch (e) {
+        // 个别机型 Keystore 异常时不能让保存直接失败：降级到 prefs 并留日志
+        debugPrint('token 写入加密存储失败，降级 prefs: $e');
+        await prefs.setString(_prefToken, token);
+      }
     } catch (e) {
       debugPrint('保存备份配置失败: $e');
       rethrow;

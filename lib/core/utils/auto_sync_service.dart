@@ -9,8 +9,9 @@ import 'package:jigongjia/providers/note_provider.dart';
 import 'package:jigongjia/providers/photo_evidence_provider.dart';
 import 'package:jigongjia/core/utils/network_backup.dart';
 
-/// 记工成功后自动同步一次：全量数据按「项目名_日期_时分秒」命名上传备份服务器。
-/// 服务端收到同名新备份时，自动把旧备份存为 .v01~.v10 快照（保留 10 次，再旧删除）。
+/// 记工成功后自动同步一次：全量数据固定以「自动备份_最新.json」为文件名上传，
+/// 每次同步直接覆盖服务端同名备份，服务端只保留这一份最新自动备份。
+/// 历史版本由服务端数据库层每小时快照保障。
 class AutoSyncService {
   /// 记工成功后触发（fire-and-forget，失败不阻断 UI）。
   /// 成功返回服务端备份名，失败/无数据返回空串。
@@ -29,13 +30,8 @@ class AutoSyncService {
       if (!await service.ping()) return '';
 
       final now = DateTime.now();
-      String two(int v) => v.toString().padLeft(2, '0');
-      String four(int v) => v.toString().padLeft(4, '0');
-      final projectNames =
-          projects.projects.map((p) => p.name).join('+');
-      final name =
-          '${projectNames}_${four(now.year)}${two(now.month)}${two(now.day)}_'
-          '${two(now.hour)}${two(now.minute)}${two(now.second)}.json';
+      // 固定文件名：服务端同名覆盖，只保留最新一份自动备份。
+      const name = '自动备份_最新.json';
 
       final data = json.encode({
         'version': 1,

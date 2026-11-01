@@ -1,9 +1,23 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// 正式签名：本地读 android/key.properties（已 gitignore），CI 读环境变量。
+// 两者都没有时回退 debug 签名，保证 `flutter build apk` 不会直接失败。
+val keystorePropsFile = rootProject.file("key.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) {
+        FileInputStream(keystorePropsFile).use { load(it) }
+    }
+}
+fun signingValue(prop: String, env: String): String? =
+    keystoreProps.getProperty(prop)?.takeIf { it.isNotBlank() } ?: System.getenv(env)
 
 android {
     namespace = "com.jigongjia.jigongjia"
@@ -33,11 +47,23 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            val storePath = signingValue("storeFile", "JIGONG_STORE_FILE")
+            if (storePath != null && File(storePath).exists()) {
+                storeFile = File(storePath)
+                storePassword = signingValue("storePassword", "JIGONG_STORE_PASSWORD")
+                keyAlias = signingValue("keyAlias", "JIGONG_KEY_ALIAS")
+                keyPassword = signingValue("keyPassword", "JIGONG_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            val releaseCfg = signingConfigs.getByName("release")
+            // 有正式密钥就用正式密钥；否则回退 debug（CI 未配 secret 时仍能出包验证）
+            signingConfig = if (releaseCfg.storeFile != null) releaseCfg else signingConfigs.getByName("debug")
         }
     }
 }

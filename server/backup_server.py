@@ -30,7 +30,7 @@ import sqlite3
 import sys
 import threading
 from datetime import datetime
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import HTTPServer, ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import unquote, urlparse, quote, parse_qs
 
@@ -217,7 +217,11 @@ class BackupHandler(BaseHTTPRequestHandler):
         return None
 
     def _read_body(self, max_bytes: int) -> bytes | None:
-        length = int(self.headers.get("Content-Length", 0))
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+        except (TypeError, ValueError):
+            self._json(400, {"error": "无效的 Content-Length"})
+            return None
         if length == 0:
             return b""
         if length > max_bytes:
@@ -260,13 +264,24 @@ class BackupHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/cos-link":
-            # 可选 ?name=<备份名> 与 ?expire=<秒>（默认最新备份 / 3600s）
+            # 可选 ?name=<备份名> 与 ?expire=<秒>（默认最新备份 / 3600s，上限 3600）
             qs = parse_qs(urlparse(self.path).query)
             link_name = unquote(qs.get("name", [""])[0]) or None
             try:
                 link_expire = int(qs.get("expire", ["3600"])[0])
             except ValueError:
                 link_expire = 3600
+            # 夹住有效期，否则 ?expire=999999999 等于发长期免鉴权公网链接
+            link_expire = max(60, min(link_expire, 3600))
+            if link_name is not None:
+                # 只允许给库里真实存在的备份签名，且名字必须过白名单（防越权签桶内其它对象）
+                if not re.fullmatch(r"[\w\u4e00-\u9fff\-.]+\.json", link_name):
+                    return self._json(400, {"error": "无效的备份名"})
+                with _session() as conn:
+                    hit = conn.execute(
+                        f"SELECT 1 FROM {TABLE} WHERE name=?", (link_name,)).fetchone()
+                if not hit:
+                    return self._json(404, {"error": f"备份 {link_name} 不存在"})
             return self._json(200, cos_presigned_link(link_name, link_expire))
 
         self._json(404, {"error": "接口不存在"})
@@ -343,6 +358,7 @@ class BackupHandler(BaseHTTPRequestHandler):
 
 
 def main():
+    os.umask(0o077)   # 新建的 backups.db / -wal / -shm 仅属主可读写
     parser = argparse.ArgumentParser(description="简约记工备份服务（SQLite 共享表）")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--token", type=str, default=None, help="master token")
@@ -353,7 +369,7 @@ def main():
     with _session() as conn:
         pass  # 建表
 
-    server = HTTPServer(("127.0.0.1", args.port), BackupHandler)
+    server = ThreadingHTTPServer(("127.0.0.1", args.port), BackupHandler)
     print(f"╔══════════════════════════════════════════╗")
     print(f"║   简约记工 备份服务端（SQLite 共享表）   ║")
     print(f"║   端口: {args.port:<33}║")

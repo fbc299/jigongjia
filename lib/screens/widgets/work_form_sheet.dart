@@ -95,16 +95,62 @@ class _WorkFormSheetState extends State<WorkFormSheet> {
 
   double _p(String s) => double.tryParse(s.trim()) ?? 0;
 
-  double get _wage {
-    if (_isRest) return 0;
+  /// 表单内容 → 记录草稿（金额由 WorkRecord.calcTotalWage 统一算，界面不再另写一份公式）
+  WorkRecord _draft() => WorkRecord(
+        id: widget.existingRecord?.id,
+        projectId: widget.projectId,
+        date: DateTime(widget.date.year, widget.date.month, widget.date.day),
+        type: _workType,
+        days: (_workType == WorkType.point && !_isRest) ? _days : 0,
+        dailyRate: (_workType == WorkType.point && !_isRest) ? _p(_dailyRateCtrl.text) : 0,
+        overtimeHours: (_workType == WorkType.point && !_isRest) ? _p(_overtimeHoursCtrl.text) : 0,
+        overtimeRate: (_workType == WorkType.point && !_isRest) ? _p(_overtimeRateCtrl.text) : 0,
+        packageDays: (_workType == WorkType.packageDay && !_isRest) ? _p(_packageDaysCtrl.text) : 0,
+        packageDayRate: (_workType == WorkType.packageDay && !_isRest) ? _p(_packageDayRateCtrl.text) : 0,
+        quantity: (_workType == WorkType.packageQty && !_isRest) ? _p(_quantityCtrl.text) : 0,
+        qtyUnit: _workType == WorkType.packageQty ? _qtyUnit : '平方',
+        qtyUnitPrice: (_workType == WorkType.packageQty && !_isRest) ? _p(_qtyUnitPriceCtrl.text) : 0,
+        note: _noteCtrl.text.trim(),
+        isRest: _isRest,
+      );
+
+  double get _wage => _draft().calcTotalWage();
+
+  /// 保存前校验。注意：**加班费允许为 0**（有的工地不给加班钱），
+  /// 只要点了保存就是用户的真实意图，不提示、不拦。
+  String? _validate() {
+    if (_isRest) return null;
+
+    final numeric = <TextEditingController>[
+      if (_workType == WorkType.point) ...[_dailyRateCtrl, _overtimeHoursCtrl, _overtimeRateCtrl],
+      if (_workType == WorkType.packageDay) ...[_packageDaysCtrl, _packageDayRateCtrl],
+      if (_workType == WorkType.packageQty) ...[_quantityCtrl, _qtyUnitPriceCtrl],
+    ];
+    for (final c in numeric) {
+      final t = c.text.trim();
+      if (t.isEmpty) continue;
+      final v = double.tryParse(t);
+      if (v == null) return '请输入数字';
+      if (v < 0) return '不能填负数';
+    }
+
     switch (_workType) {
       case WorkType.point:
-        return _days * _p(_dailyRateCtrl.text) + _p(_overtimeHoursCtrl.text) * _p(_overtimeRateCtrl.text);
+        if (_days <= 0) return '工天要大于 0';
+        if (_p(_dailyRateCtrl.text) <= 0) return '日薪要大于 0';
+        break;
       case WorkType.packageDay:
-        return _p(_packageDaysCtrl.text) * _p(_packageDayRateCtrl.text);
+        if (_p(_packageDaysCtrl.text) <= 0) return '包工天数要大于 0';
+        if (_p(_packageDayRateCtrl.text) <= 0) return '包工日单价要大于 0';
+        break;
       case WorkType.packageQty:
-        return _p(_quantityCtrl.text) * _p(_qtyUnitPriceCtrl.text);
+        if (_p(_quantityCtrl.text) <= 0) return '数量要大于 0';
+        if (_p(_qtyUnitPriceCtrl.text) <= 0) return '单价要大于 0';
+        break;
     }
+
+    if (_wage <= 0) return '合计金额为 0，请检查单价';
+    return null;
   }
 
   @override
@@ -118,6 +164,12 @@ class _WorkFormSheetState extends State<WorkFormSheet> {
         backgroundColor: Colors.white,
         elevation: 0,
         actions: [
+          if (!_isEdit)
+            IconButton(
+              icon: const Icon(Icons.content_copy, size: 20),
+              tooltip: '复制上一条',
+              onPressed: _copyLastRecord,
+            ),
           if (_isEdit)
             IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.red),
@@ -176,29 +228,53 @@ class _WorkFormSheetState extends State<WorkFormSheet> {
     );
   }
 
+  /// 复制本项目最近一条记录（工地连着干同样的活时不用每次重填）
+  Future<void> _copyLastRecord() async {
+    final work = context.read<WorkProvider>();
+    final mine = work.records
+        .where((r) =>
+            r.projectId == widget.projectId &&
+            r.id != widget.existingRecord?.id &&
+            !r.isRest)
+        .toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+    if (mine.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('这个项目还没有可复制的记录')),
+      );
+      return;
+    }
+    final last = mine.first;
+    setState(() {
+      _workType = last.type;
+      _days = last.days > 0 ? last.days : 1.0;
+      _overtimeHoursCtrl.text = _fmt(last.overtimeHours);
+      _dailyRateCtrl.text = _fmt(last.dailyRate);
+      _overtimeRateCtrl.text = _fmt(last.overtimeRate);
+      _packageDaysCtrl.text = _fmt(last.packageDays);
+      _packageDayRateCtrl.text = _fmt(last.packageDayRate);
+      _quantityCtrl.text = _fmt(last.quantity);
+      _qtyUnit = last.qtyUnit.isNotEmpty ? last.qtyUnit : '平方';
+      _qtyUnitPriceCtrl.text = _fmt(last.qtyUnitPrice);
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('已复制 ${last.date.month}月${last.date.day}日 的记录'),
+      ),
+    );
+  }
+
   Future<void> _save() async {
     final ctx = context;
+    final error = _validate();
+    if (error != null) {
+      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
     try {
-    final record = WorkRecord(
-      id: widget.existingRecord?.id,
-      projectId: widget.projectId,
-      // 日期归一到当天 0 点：work_records 有 UNIQUE(projectId, date)（S3），
-      // 若带时分，同一天的记录会落在不同 date 值上，唯一约束形同虚设。
-      date: DateTime(widget.date.year, widget.date.month, widget.date.day),
-      type: _workType,
-      days: (_workType == WorkType.point && !_isRest) ? _days : 0,
-      dailyRate: (_workType == WorkType.point && !_isRest) ? _p(_dailyRateCtrl.text) : 0,
-      overtimeHours: (_workType == WorkType.point && !_isRest) ? _p(_overtimeHoursCtrl.text) : 0,
-      overtimeRate: (_workType == WorkType.point && !_isRest) ? _p(_overtimeRateCtrl.text) : 0,
-      packageDays: (_workType == WorkType.packageDay && !_isRest) ? _p(_packageDaysCtrl.text) : 0,
-      packageDayRate: (_workType == WorkType.packageDay && !_isRest) ? _p(_packageDayRateCtrl.text) : 0,
-      quantity: (_workType == WorkType.packageQty && !_isRest) ? _p(_quantityCtrl.text) : 0,
-      qtyUnit: _workType == WorkType.packageQty ? _qtyUnit : '平方',
-      qtyUnitPrice: (_workType == WorkType.packageQty && !_isRest) ? _p(_qtyUnitPriceCtrl.text) : 0,
-      totalWage: _wage,
-      note: _noteCtrl.text.trim(),
-      isRest: _isRest,
-    );
+    final draft = _draft();
+    // 金额以模型为准：界面上的「合计」也是它算的，两边不可能对不上
+    final record = draft.copyWith(totalWage: draft.calcTotalWage());
 
     final provider = ctx.read<WorkProvider>();
     if (_isEdit) {

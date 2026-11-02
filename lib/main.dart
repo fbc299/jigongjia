@@ -14,6 +14,7 @@ import 'package:jigongjia/providers/expense_provider.dart';
 import 'package:jigongjia/providers/note_provider.dart';
 import 'package:jigongjia/providers/photo_evidence_provider.dart';
 import 'package:jigongjia/core/utils/auto_sync_service.dart';
+import 'package:jigongjia/core/utils/reminder_service.dart';
 import 'package:jigongjia/app.dart';
 
 void main() {
@@ -29,6 +30,9 @@ void main() {
     debugPrint('未捕获异常: $error\n$stack');
     return true;
   };
+
+  // 启动时恢复每日提醒排程（系统重启/清通知后需要重排）
+  ReminderService.restoreIfEnabled();
 
   final workProvider = WorkProvider();
   final borrowProvider = BorrowProvider();

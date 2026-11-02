@@ -1,7 +1,7 @@
 name: jigongjia
 description: 格格记工 - 工人记工模块
 publish_to: 'none'
-version: 1.1.28+40
+version: 1.1.29+41
 
 environment:
   sdk: ^3.8.1
@@ -31,6 +31,9 @@ dependencies:
   package_info_plus: ^9.0.1
   pointycastle: ^4.0.0
   flutter_secure_storage: ^10.3.4
+  flutter_local_notifications: ^20.1.0
+  timezone: ^0.10.1
+  flutter_timezone: ^5.1.1
 
 dev_dependencies:
   flutter_test:

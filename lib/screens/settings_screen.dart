@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'settings/data_backup_section.dart';
+import 'settings/reminder_section.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 
@@ -20,6 +21,9 @@ class SettingsScreen extends StatelessWidget {
           const Divider(height: 1),
           _buildSectionHeader(context, '数据管理'),
           const DataManagementSection(),
+          const Divider(height: 1),
+          _buildSectionHeader(context, '提醒'),
+          const ReminderSection(),
           const Divider(height: 1),
           _buildSectionHeader(context, '腾讯云COS备份'),
           const NetworkBackupSection(),

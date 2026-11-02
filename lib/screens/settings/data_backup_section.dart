@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/utils/auto_sync_service.dart';
 import '../../providers/project_provider.dart';
 import '../../providers/work_provider.dart';
 import '../../providers/borrow_provider.dart';
@@ -674,6 +675,8 @@ class _NetworkBackupSectionState extends State<NetworkBackupSection> {
   Map<String, dynamic>? _cosLink;
   bool _cosBusy = false;
   String? _listError;
+  ({DateTime? lastOk, String? lastError})? _syncStatus;
+  bool _syncBusy = false;
 
   @override
   void initState() {
@@ -683,6 +686,8 @@ class _NetworkBackupSectionState extends State<NetworkBackupSection> {
 
   Future<void> _init() async {
     await _service.load();
+    final status = await AutoSyncService.status();
+    if (mounted) setState(() => _syncStatus = status);
     final ok = await _service.ping();
     if (ok) {
       try {
@@ -724,6 +729,18 @@ class _NetworkBackupSectionState extends State<NetworkBackupSection> {
           title: Text(_connected ? '已连接备份服务器' : '未连接'),
           subtitle: Text(_service.serverUrl),
           trailing: TextButton(onPressed: _showSettings, child: const Text('设置')),
+        ),
+        ListTile(
+          leading: Icon(
+            _syncStatus?.lastError == null ? Icons.sync : Icons.sync_problem,
+            color: _syncStatus?.lastError == null ? AppTheme.okGreen : Colors.orange,
+          ),
+          title: const Text('自动备份'),
+          subtitle: Text(_autoSyncSummary()),
+          trailing: TextButton(
+            onPressed: _syncBusy ? null : _syncNow,
+            child: Text(_syncBusy ? '同步中…' : '立即备份'),
+          ),
         ),
         ListTile(
           leading: const Icon(Icons.cloud_upload),
@@ -798,6 +815,44 @@ class _NetworkBackupSectionState extends State<NetworkBackupSection> {
         ],
       ],
     );
+  }
+
+  /// 自动备份状态摘要：上次成功时间 +（若有）失败原因
+  String _autoSyncSummary() {
+    final st = _syncStatus;
+    final last = st?.lastOk;
+    final err = st?.lastError;
+    final when = last == null
+        ? '还没有成功备份过'
+        : '上次成功 ${DateFormat('MM-dd HH:mm').format(last)}';
+    if (err == null || err.isEmpty) return when;
+    return '$when\n上次失败：$err';
+  }
+
+  Future<void> _syncNow() async {
+    setState(() => _syncBusy = true);
+    try {
+      final name = await AutoSyncService.syncNow();
+      if (!mounted) return;
+      final status = await AutoSyncService.status();
+      List<Map<String, dynamic>> list = _backups;
+      if (name.isNotEmpty) {
+        try {
+          list = await _service.list();
+        } catch (_) {}
+      }
+      if (!mounted) return;
+      setState(() {
+        _syncStatus = status;
+        _backups = list;
+        _listError = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(name.isEmpty ? '备份失败，请看上面的失败原因' : '已备份到云端 ✓')),
+      );
+    } finally {
+      if (mounted) setState(() => _syncBusy = false);
+    }
   }
 
   String _formatSize(dynamic bytes) {

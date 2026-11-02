@@ -124,6 +124,7 @@ class DatabaseHelper {
     await db.execute('''
       CREATE TABLE ${AppConstants.tableExpenses} (
         id TEXT PRIMARY KEY,
+        projectId TEXT NOT NULL DEFAULT '',
         amount REAL NOT NULL,
         category TEXT NOT NULL,
         date INTEGER NOT NULL,
@@ -150,11 +151,9 @@ class DatabaseHelper {
     await db.execute(
       'CREATE INDEX idx_work_records_date ON ${AppConstants.tableWorkRecords} (date)',
     );
-    // 同一项目同一天只允许一条记工记录（S3：防同日重复记工导致工资重复累计）。
-    // 与 _onUpgrade 中的 v2 迁移保持完全一致，否则新装用户拿不到该约束。
-    await db.execute(
-      'CREATE UNIQUE INDEX $_idxWorkRecordDay ON ${AppConstants.tableWorkRecords} (projectId, date)',
-    );
+    // 注意：v4 起不再有 UNIQUE(projectId, date)。
+    // 一天多条是真实需求（上午点工 + 下午计件、一天两批货），
+    // 唯一约束会把这些明细挤成一条，金额对了但工天和明细全丢。
     await db.execute(
       'CREATE INDEX idx_borrow_records_project ON ${AppConstants.tableBorrowRecords} (projectId)',
     );
@@ -185,6 +184,9 @@ class DatabaseHelper {
       if (oldVersion < 3) {
         await _migrateToV3PhotoThumb(db);
       }
+      if (oldVersion < 4) {
+        await _migrateToV4MultiRecordAndExpenseProject(db);
+      }
     } catch (e) {
       debugPrint('升级数据库失败: $e');
       rethrow;
@@ -193,6 +195,26 @@ class DatabaseHelper {
 
   /// v2 → v3：photo_evidence 增加 thumbPath（列表用 400px 缩略图）。
   /// 老数据留空串，展示时回退到原图，不需要回填。
+  /// v3 → v4：
+  /// 1) 去掉 UNIQUE(projectId, date) —— 一天允许多条记录（点工半天 + 计件、两批货）
+  /// 2) expenses 增加 projectId（开支归属项目，可按项目算成本）
+  Future<void> _migrateToV4MultiRecordAndExpenseProject(Database db) async {
+    await db.execute('DROP INDEX IF EXISTS $_idxWorkRecordDay');
+
+    final cols = await db.rawQuery('PRAGMA table_info(${AppConstants.tableExpenses})');
+    final hasProject = cols.any((c) => c['name'] == 'projectId');
+    if (!hasProject) {
+      await db.execute(
+        "ALTER TABLE ${AppConstants.tableExpenses} "
+        "ADD COLUMN projectId TEXT NOT NULL DEFAULT ''",
+      );
+    }
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_expenses_project '
+      'ON ${AppConstants.tableExpenses} (projectId)',
+    );
+  }
+
   Future<void> _migrateToV3PhotoThumb(Database db) async {
     final columns = await db.rawQuery(
       'PRAGMA table_info(${AppConstants.tablePhotoEvidence})',

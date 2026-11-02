@@ -17,7 +17,7 @@ void main() {
     test('should have correct database version', () {
       // v2：work_records 增加 UNIQUE(projectId, date)（S3 同日记工护栏）
       // v3：photo_evidence 增加 thumbPath（列表用 400px 缩略图）
-      expect(AppConstants.dbVersion, 3);
+      expect(AppConstants.dbVersion, 4);
     });
 
     test('should define all required table names', () {

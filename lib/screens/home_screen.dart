@@ -3,6 +3,7 @@ import 'package:jigongjia/core/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:jigongjia/core/utils/privacy_service.dart';
+import 'package:jigongjia/core/utils/work_stats.dart';
 
 import 'package:jigongjia/providers/project_provider.dart';
 import 'package:jigongjia/providers/work_provider.dart';
@@ -11,8 +12,8 @@ import 'package:jigongjia/providers/settlement_provider.dart';
 import 'package:jigongjia/providers/expense_provider.dart';
 import 'package:jigongjia/providers/note_provider.dart';
 import 'package:jigongjia/models/project.dart';
-import 'package:jigongjia/models/work_record.dart';
 import 'package:jigongjia/screens/project_detail_screen.dart';
+import 'package:jigongjia/screens/widgets/work_form_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool showFab;
@@ -249,20 +250,8 @@ class _ProjectCard extends StatelessWidget {
     return Consumer3<WorkProvider, BorrowProvider, SettlementProvider>(
       builder: (context, workProv, borrowProv, settleProv, _) {
         final workRecords = workProv.getRecordsByProject(project.id);
-        final totalDays = workRecords.fold<double>(
-          0,
-          (sum, r) {
-            if (r.isRest) return sum;
-            switch (r.type) {
-              case WorkType.point:
-                return sum + r.days;
-              case WorkType.packageDay:
-                return sum + r.packageDays;
-              case WorkType.packageQty:
-                return sum + (r.quantity > 0 ? 1.0 : 0.0);
-            }
-          },
-        );
+        // 工天必须走统一口径（同一天多条记录按天合并，计件不重复计天）
+        final totalDays = sumWorkDays(workRecords);
         final totalOvertime = workRecords.fold<double>(
           0,
           (sum, r) => sum + r.overtimeHours,
@@ -352,6 +341,28 @@ class _ProjectCard extends StatelessWidget {
                         color: unpaidWage > 0 ? AppTheme.okGreen : Colors.grey,
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 6),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: const Size(0, 32),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => WorkFormSheet(
+                            projectId: project.id,
+                            project: project,
+                            date: DateTime.now(),
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(Icons.edit_note, size: 18),
+                      label: const Text('记今天的工', style: TextStyle(fontSize: 13)),
+                    ),
                   ),
                 ],
               ),

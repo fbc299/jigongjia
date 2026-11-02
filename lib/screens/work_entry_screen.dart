@@ -81,10 +81,11 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
       body: Consumer<WorkProvider>(
         builder: (context, workProv, _) {
           final records = workProv.getRecordsByProject(widget.projectId);
-          final recordMap = <String, WorkRecord>{};
+          // 一天允许多条（上午点工 + 下午计件、一天两批货），按天分组
+          final recordMap = <String, List<WorkRecord>>{};
           for (final r in records) {
             final key = '${r.date.year}-${r.date.month}-${r.date.day}';
-            recordMap[key] = r;
+            recordMap.putIfAbsent(key, () => <WorkRecord>[]).add(r);
           }
 
           return ValueListenableBuilder<bool>(
@@ -283,7 +284,7 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
     );
   }
 
-  Widget _buildCalendarGrid(ThemeData theme, Map<String, WorkRecord> recordMap) {
+  Widget _buildCalendarGrid(ThemeData theme, Map<String, List<WorkRecord>> recordMap) {
     final firstDay = DateTime(_currentMonth.year, _currentMonth.month, 1);
     final lastDay = DateTime(_currentMonth.year, _currentMonth.month + 1, 0);
     // Monday = 1, Sunday = 7
@@ -309,7 +310,7 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
           final day = index - startOffset + 1;
           final date = DateTime(_currentMonth.year, _currentMonth.month, day);
           final key = '${date.year}-${date.month}-${date.day}';
-          final record = recordMap[key];
+          final dayRecords = recordMap[key] ?? const <WorkRecord>[];
           final isSelected = date.year == _selectedDate.year &&
               date.month == _selectedDate.month &&
               date.day == _selectedDate.day;
@@ -320,20 +321,22 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
 
           return GestureDetector(
             onTap: () {
-              if (record != null) {
-                // Has record → open edit form directly
-                _openWorkForm(date, existingRecord: record);
-              } else {
-                setState(() => _selectedDate = date);
+              setState(() => _selectedDate = date);
+              if (dayRecords.length == 1) {
+                // 只有一条 → 直接编辑
+                _openWorkForm(date, existingRecord: dayRecords.first);
+              } else if (dayRecords.length > 1) {
+                // 多条 → 先选是哪一条
+                _showDayRecordsSheet(date, dayRecords);
               }
             },
-            onDoubleTap: record == null ? () => _openWorkForm(date) : null,
+            onDoubleTap: dayRecords.isEmpty ? () => _openWorkForm(date) : null,
             child: Container(
               margin: const EdgeInsets.all(2),
               decoration: BoxDecoration(
                 color: isSelected
                     ? theme.colorScheme.primary.withValues(alpha: 0.1)
-                    : (record != null ? Colors.white : Colors.transparent),
+                    : (dayRecords.isNotEmpty ? Colors.white : Colors.transparent),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: isToday
@@ -363,8 +366,8 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
                   ),
                   const SizedBox(height: 2),
                   // Status indicator
-                  if (record != null)
-                    _buildRecordIndicator(record, theme)
+                  if (dayRecords.isNotEmpty)
+                    _buildDayIndicator(dayRecords, theme)
                   else
                     const SizedBox(height: 14),
                 ],
@@ -374,6 +377,129 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
         },
       ),
     );
+  }
+
+  /// 一天多条时，格子只显示「N条 + 合计工天」
+  Widget _buildDayIndicator(List<WorkRecord> recs, ThemeData theme) {
+    if (recs.length == 1) return _buildRecordIndicator(recs.first, theme);
+    return Column(
+      children: [
+        Text('${recs.length}条',
+            style: TextStyle(fontSize: 9, color: theme.colorScheme.primary)),
+        Text('${formatDays(sumWorkDays(recs))}天',
+            style: TextStyle(fontSize: 9, color: Colors.grey[600])),
+      ],
+    );
+  }
+
+  /// 一天多条记录时的详情：逐条列出 + 合计 + 「再记一条」
+  Widget _buildDayDetail(List<WorkRecord> dayRecords, ThemeData theme,
+      String weekday, bool hidden) {
+    if (dayRecords.length == 1) {
+      return _buildRecordDetail(dayRecords.first, theme, weekday, hidden);
+    }
+    final total = dayRecords.fold<double>(0, (sum, r) => sum + r.totalWage);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('${_selectedDate.month}月${_selectedDate.day}日 星期$weekday',
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+            const Spacer(),
+            Text('${dayRecords.length} 条 · ${PrivacyService.format(total, hide: hidden)}',
+                style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ...dayRecords.map((r) => InkWell(
+              onTap: () => _openWorkForm(_selectedDate, existingRecord: r),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 7),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _recordSummary(r, hidden),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                      ),
+                    ),
+                    Text(
+                      r.isRest ? '—' : PrivacyService.format(r.totalWage, hide: hidden),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    ),
+                    const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+                  ],
+                ),
+              ),
+            )),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () => _openWorkForm(_selectedDate),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('再记一条'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _recordSummary(WorkRecord r, bool hidden) {
+    if (r.isRest) return '休息日';
+    switch (r.type) {
+      case WorkType.point:
+        final ovt = r.overtimeHours > 0 ? ' + 加班${_num(r.overtimeHours)}h' : '';
+        return '点工 ${_num(r.days)}天$ovt · ${PrivacyService.format(r.dailyRate, hide: hidden)}/天';
+      case WorkType.packageDay:
+        return '包工 ${_num(r.packageDays)}天 · ${PrivacyService.format(r.packageDayRate, hide: hidden)}/天';
+      case WorkType.packageQty:
+        return '包工 ${_num(r.quantity)}${r.qtyUnit} · ¥${r.qtyUnitPrice}/${r.qtyUnit}';
+    }
+  }
+
+  String _num(double v) =>
+      v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
+
+  /// 一天多条记录时，先让用户选要编辑哪条（或再记一条）
+  Future<void> _showDayRecordsSheet(DateTime date, List<WorkRecord> records) async {
+    final hidden = PrivacyService().isHidden.value;
+    final chosen = await showModalBottomSheet<Object>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text('${date.month}月${date.day}日 · ${records.length} 条记录',
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+            ),
+            for (final r in records)
+              ListTile(
+                dense: true,
+                title: Text(_recordSummary(r, hidden)),
+                subtitle: Text(PrivacyService.format(r.totalWage, hide: hidden)),
+                trailing: const Icon(Icons.edit, size: 18),
+                onTap: () => Navigator.pop(ctx, r),
+              ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.add),
+              title: const Text('再记一条'),
+              onTap: () => Navigator.pop(ctx, 'add'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || chosen == null) return;
+    if (chosen is WorkRecord) {
+      await _openWorkForm(date, existingRecord: chosen);
+    } else {
+      await _openWorkForm(date);
+    }
   }
 
   Widget _buildRecordIndicator(WorkRecord record, ThemeData theme) {
@@ -416,9 +542,9 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
     );
   }
 
-  Widget _buildSelectedDayPanel(ThemeData theme, Map<String, WorkRecord> recordMap, bool hidden) {
+  Widget _buildSelectedDayPanel(ThemeData theme, Map<String, List<WorkRecord>> recordMap, bool hidden) {
     final key = '${_selectedDate.year}-${_selectedDate.month}-${_selectedDate.day}';
-    final record = recordMap[key];
+    final dayRecords = recordMap[key] ?? const <WorkRecord>[];
     final weekday = ['一', '二', '三', '四', '五', '六', '日'][_selectedDate.weekday - 1];
 
     return Container(
@@ -435,9 +561,9 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
           ),
         ],
       ),
-      child: record == null
+      child: dayRecords.isEmpty
           ? _buildEmptyDay(theme, weekday)
-          : _buildRecordDetail(record, theme, weekday, hidden),
+          : _buildDayDetail(dayRecords, theme, weekday, hidden),
     );
   }
 
@@ -563,20 +689,9 @@ class _WorkEntryScreenState extends State<WorkEntryScreen> {
     // 连点保护：避免同一秒弹出两个表单，各存一条同日记录
     if (_formOpening) return;
 
-    var target = existingRecord;
-    // S3: 新增前用 getRecordsByDate 判重（此前全项目 0 调用）。同一天只允许一条记工，
-    // 已存在则直接转为编辑，否则再叠一条会让工资翻倍，而日历只显示一条、界面看不出错。
-    if (target == null) {
-      final sameDay = context
-          .read<WorkProvider>()
-          .getRecordsByDate(widget.projectId, date);
-      if (sameDay.isNotEmpty) {
-        target = sameDay.first;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('当天已有记工记录，已转为编辑该记录')),
-        );
-      }
-    }
+    // 一天允许多条记录（DB v4 已去掉 UNIQUE(projectId, date)）：
+    // 只有明确点某一条时才编辑，其余情况都算新增。
+    final target = existingRecord;
 
     _formOpening = true;
     try {

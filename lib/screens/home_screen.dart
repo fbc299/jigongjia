@@ -13,6 +13,8 @@ import 'package:jigongjia/providers/expense_provider.dart';
 import 'package:jigongjia/providers/note_provider.dart';
 import 'package:jigongjia/models/project.dart';
 import 'package:jigongjia/screens/project_detail_screen.dart';
+import 'package:jigongjia/screens/expense_screen.dart';
+import 'package:jigongjia/screens/note_screen.dart';
 import 'package:jigongjia/screens/widgets/work_form_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -45,15 +47,27 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) {
-              if (value == 'archived') {
-                _showArchivedProjects(context);
+              switch (value) {
+                case 'archived':
+                  _showArchivedProjects(context);
+                  break;
+                case 'expense':
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ExpenseScreen()),
+                  );
+                  break;
+                case 'note':
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const NoteScreen()),
+                  );
+                  break;
               }
             },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'archived',
-                child: Text('已归档项目'),
-              ),
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'expense', child: Text('开支记录')),
+              PopupMenuItem(value: 'note', child: Text('笔记')),
+              PopupMenuDivider(),
+              PopupMenuItem(value: 'archived', child: Text('已归档项目')),
             ],
           ),
         ],

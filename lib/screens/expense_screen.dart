@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:jigongjia/core/utils/privacy_service.dart';
 
 import '../providers/expense_provider.dart';
+import '../providers/project_provider.dart';
 import '../models/expense.dart';
 
 class ExpenseScreen extends StatefulWidget {
@@ -281,6 +282,11 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     DateTime selectedDate = DateTime.now();
 
     final expenseProvider = outerCtx.read<ExpenseProvider>();
+    // 开支归属项目（空串 = 通用开支）
+    final projects = outerCtx.read<ProjectProvider>().activeProjects;
+    String selectedProjectId =
+        projects.length == 1 ? projects.first.id : '';
+
     final result = await showDialog<bool>(
       context: outerCtx,
       builder: (ctx) {
@@ -313,6 +319,21 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                       onChanged: (v) {
                         if (v != null) {
                           setDialogState(() => selectedCategory = v);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: selectedProjectId,
+                      decoration: const InputDecoration(labelText: '归属项目'),
+                      items: [
+                        const DropdownMenuItem(value: '', child: Text('不归属（通用开支）')),
+                        ...projects.map((p) =>
+                            DropdownMenuItem(value: p.id, child: Text(p.name))),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) {
+                          setDialogState(() => selectedProjectId = v);
                         }
                       },
                     ),
@@ -372,6 +393,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         }
 
         final expense = Expense(
+          projectId: selectedProjectId,
           amount: amount,
           category: selectedCategory,
           date: selectedDate,

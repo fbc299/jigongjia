@@ -8,6 +8,8 @@ import '../providers/work_provider.dart';
 import '../providers/borrow_provider.dart';
 import '../providers/settlement_provider.dart';
 import '../providers/photo_evidence_provider.dart';
+import '../providers/expense_provider.dart';
+import '../providers/note_provider.dart';
 import '../core/utils/photo_files.dart';
 
 class ProjectProvider extends ChangeNotifier {
@@ -17,17 +19,23 @@ class ProjectProvider extends ChangeNotifier {
   BorrowProvider? _borrow;
   SettlementProvider? _settlement;
   PhotoEvidenceProvider? _photo;
+  ExpenseProvider? _expense;
+  NoteProvider? _note;
 
   void attach({
     WorkProvider? work,
     BorrowProvider? borrow,
     SettlementProvider? settlement,
     PhotoEvidenceProvider? photo,
+    ExpenseProvider? expense,
+    NoteProvider? note,
   }) {
     _work = work;
     _borrow = borrow;
     _settlement = settlement;
     _photo = photo;
+    _expense = expense;
+    _note = note;
   }
   /// Selector helper: wrap Selector<ProjectProvider, T> to reduce rebuilds.
   static Widget select<T>({
@@ -145,6 +153,12 @@ class ProjectProvider extends ChangeNotifier {
         for (final p in projectPhotos) ...[p.filePath, p.thumbPath],
       ];
       final db = await DatabaseHelper.instance.database;
+      // 开支表没有外键（projectId 可空），必须显式删，否则删完项目还留着它的成本
+      await db.delete(
+        AppConstants.tableExpenses,
+        where: 'projectId = ?',
+        whereArgs: [id],
+      );
       await db.delete(
         AppConstants.tableProjects,
         where: 'id = ?',
@@ -159,6 +173,8 @@ class ProjectProvider extends ChangeNotifier {
       _borrow?.removeByProject(id);
       _settlement?.removeByProject(id);
       _photo?.removeByProject(id);
+      _expense?.removeByProject(id);
+      _note?.removeByProject(id);
     } catch (e) {
       debugPrint('删除项目失败: $e');
       rethrow;

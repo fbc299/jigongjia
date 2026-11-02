@@ -13,6 +13,7 @@ import 'package:jigongjia/providers/stats_provider.dart';
 import 'package:jigongjia/providers/expense_provider.dart';
 import 'package:jigongjia/providers/note_provider.dart';
 import 'package:jigongjia/providers/photo_evidence_provider.dart';
+import 'package:jigongjia/core/utils/auto_sync_service.dart';
 import 'package:jigongjia/app.dart';
 
 void main() {
@@ -33,13 +34,28 @@ void main() {
   final borrowProvider = BorrowProvider();
   final settlementProvider = SettlementProvider();
   final photoProvider = PhotoEvidenceProvider();
+  final expenseProvider = ExpenseProvider();
+  final noteProvider = NoteProvider();
   final projectProvider = ProjectProvider()
     ..attach(
       work: workProvider,
       borrow: borrowProvider,
       settlement: settlementProvider,
       photo: photoProvider,
+      expense: expenseProvider,
+      note: noteProvider,
     );
+  // 任何数据变动 → 30 秒后自动上传一次（debounce），不再只在新增记工时同步
+  AutoSyncService.register(
+    projects: projectProvider,
+    work: workProvider,
+    borrow: borrowProvider,
+    settlement: settlementProvider,
+    expense: expenseProvider,
+    note: noteProvider,
+    photo: photoProvider,
+  );
+
 
   runApp(
     MultiProvider(
@@ -52,8 +68,8 @@ void main() {
           create: (_) =>
               StatsProvider(workProvider, borrowProvider, settlementProvider),
         ),
-        ChangeNotifierProvider(create: (_) => ExpenseProvider()),
-        ChangeNotifierProvider(create: (_) => NoteProvider()),
+        ChangeNotifierProvider.value(value: expenseProvider),
+        ChangeNotifierProvider.value(value: noteProvider),
         ChangeNotifierProvider.value(value: photoProvider),
       ],
       child: MaterialApp(

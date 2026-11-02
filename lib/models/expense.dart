@@ -4,6 +4,8 @@ const _uuid = Uuid();
 
 class Expense {
   final String id;
+  /// 归属项目；空串表示不归属任何项目（通用开支）
+  final String projectId;
   final double amount;
   final String category;
   final DateTime date;
@@ -12,6 +14,7 @@ class Expense {
 
   Expense({
     String? id,
+    this.projectId = '',
     required this.amount,
     required this.category,
     required this.date,
@@ -23,6 +26,7 @@ class Expense {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'projectId': projectId,
       'amount': amount,
       'category': category,
       'date': date.millisecondsSinceEpoch,
@@ -34,6 +38,7 @@ class Expense {
   factory Expense.fromMap(Map<String, dynamic> map) {
     return Expense(
       id: map['id'] as String,
+      projectId: map['projectId'] as String? ?? '',
       amount: (map['amount'] as num).toDouble(),
       category: map['category'] as String,
       date: DateTime.fromMillisecondsSinceEpoch(map['date'] as int),
@@ -43,6 +48,7 @@ class Expense {
   }
 
   Expense copyWith({
+    String? projectId,
     double? amount,
     String? category,
     DateTime? date,
@@ -50,6 +56,7 @@ class Expense {
   }) {
     return Expense(
       id: id,
+      projectId: projectId ?? this.projectId,
       amount: amount ?? this.amount,
       category: category ?? this.category,
       date: date ?? this.date,

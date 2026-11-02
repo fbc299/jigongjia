@@ -73,6 +73,23 @@ class ExpenseProvider extends ChangeNotifier {
     }
   }
 
+  /// 某项目的开支合计（projectId 传空串表示全部项目）
+  double getTotalByProject(String projectId) {
+    if (projectId.isEmpty) return _expenses.fold(0.0, (sum, e) => sum + e.amount);
+    return _expenses
+        .where((e) => e.projectId == projectId)
+        .fold(0.0, (sum, e) => sum + e.amount);
+  }
+
+  List<Expense> getExpensesByProject(String projectId) =>
+      _expenses.where((e) => e.projectId == projectId).toList();
+
+  /// 删除项目后清理内存缓存（DB 行的清理由项目页负责）
+  void removeByProject(String projectId) {
+    _expenses.removeWhere((e) => e.projectId == projectId);
+    notifyListeners();
+  }
+
   double getMonthlyTotal(int year, int month) {
     return _expenses
         .where((e) => e.date.year == year && e.date.month == month)
